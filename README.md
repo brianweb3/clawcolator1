@@ -90,7 +90,7 @@ To bound compute usage, the crank uses a **16‑step windowed sweep**:
 2. **Caller maintenance settle** (best effort) — settles maintenance fees for the calling account with 50% forgiveness
 3. **Windowed liquidation scan** — scans accounts in the current window (1/16th of total) with budget limit
 4. **Windowed force‑realize** — if insurance is critical, force‑closes positions in current window
-5. **Garbage collection** — closes dust accounts with zero balance
+5. **Garbage collection** — frees user accounts with zero position, zero capital, and non-positive PnL
 6. **Socialization step** — applies pending profit/loss haircuts to accounts in current window
 7. **LP max position update** — tracks maximum LP position size for risk limits
 
@@ -118,13 +118,13 @@ The sweep then restarts from step 0.
 
 **Mark PnL routing (critical for invariant preservation):**
 
-| Scenario | mark_pnl | Effect | Routing |
-|----------|----------|--------|---------|
-| User has profit on close | > 0 | System deficit | → `apply_adl()` (socializes via ADL waterfall) |
-| User has loss on close | < 0 | System surplus | → `insurance_fund.balance` |
+| Scenario | mark_pnl | Routing |
+|----------|----------|---------|
+| User has profit on close | > 0 | → `apply_adl()` (socializes via ADL waterfall) |
+| User has loss on close | ≤ 0 | → realized from user's own capital via settlement |
 
-- **Deficit** (mark_pnl > 0): The liquidated user has unrealized profit. This profit must come from somewhere, so it's socialized via ADL (haircutting other accounts' positive PnL).
-- **Surplus** (mark_pnl < 0): The liquidated user has unrealized loss. This loss benefits the system, so it's credited to insurance.
+- **Profit** (mark_pnl > 0): The liquidated user has unrealized profit. This profit must come from somewhere, so it's socialized via ADL (haircutting other accounts' positive PnL).
+- **Loss** (mark_pnl ≤ 0): The liquidated user has unrealized loss. This is simply realized from their capital—no special routing needed.
 
 After mark PnL routing:
 - `settle_warmup_to_capital()` realizes any remaining PnL (negative PnL reduces capital immediately; positive PnL is subject to warmup budget)
