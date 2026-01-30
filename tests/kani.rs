@@ -6398,10 +6398,12 @@ fn gc_respects_full_dust_predicate() {
             engine.accounts[idx as usize].funding_index = I128::new(0); // settled
         }
         _ => {
-            // funding_index mismatch blocks GC
+            // positive pnl blocks GC (accounts with value are never collected)
+            let pos_pnl: i128 = kani::any();
+            kani::assume(pos_pnl > 0 && pos_pnl < 1000);
+            engine.accounts[idx as usize].pnl = I128::new(pos_pnl);
             engine.accounts[idx as usize].position_size = I128::new(0);
             engine.accounts[idx as usize].reserved_pnl = 0;
-            engine.accounts[idx as usize].funding_index = I128::new(1); // mismatched (global is 0)
         }
     }
 

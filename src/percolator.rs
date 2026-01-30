@@ -6705,13 +6705,19 @@ mod kani_proofs {
         // Teleport check: LP2 should not absorb LP1's earlier loss when closing at oracle.
         // settle_warmup_to_capital immediately settles negative PnL against capital,
         // so LP1's pnl field is 0 and capital is reduced by 10k*E6.
+        // Some of the user's PnL may have partially settled to capital via warmup
+        // during trade 2 (correct behavior: settle matured warmup before slope reset).
         let ten_k_e6: u128 = (10_000 * E6) as u128;
+        let initial_cap = 50_000_000_000u128;
         assert_eq!(engine.accounts[user as usize].position_size.get(), 0);
-        assert_eq!(engine.accounts[user as usize].pnl.get(), ten_k_e6 as i128);
+        // Check total value rather than exact pnl (warmup may partially settle)
+        let user_pnl = engine.accounts[user as usize].pnl.get() as u128;
+        let user_cap = engine.accounts[user as usize].capital.get();
+        assert_eq!(user_pnl + user_cap, initial_cap + ten_k_e6);
         assert_eq!(engine.accounts[lp1 as usize].pnl.get(), 0);
-        assert_eq!(engine.accounts[lp1 as usize].capital.get(), 50_000_000_000u128 - ten_k_e6);
+        assert_eq!(engine.accounts[lp1 as usize].capital.get(), initial_cap - ten_k_e6);
         assert_eq!(engine.accounts[lp2 as usize].pnl.get(), 0);
-        assert_eq!(engine.accounts[lp2 as usize].capital.get(), 50_000_000_000u128);
+        assert_eq!(engine.accounts[lp2 as usize].capital.get(), initial_cap);
 
         // Conservation must hold
         assert!(engine.check_conservation(ORACLE_100K));
