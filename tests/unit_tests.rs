@@ -7431,3 +7431,87 @@ fn test_abandoned_with_stale_last_fee_slot_eventually_closed() {
     // At least one of the two cranks should have GC'd it
     // (first crank drains capital to 0, GC might close it there already)
 }
+
+// ==============================================================================
+// Warmup budget double-subtraction bug
+// ==============================================================================
+
+/// Reproduces the warmup budget deadlock: when W+ > W- and insurance is large,
+/// warmup_budget_remaining() double-subtracts W+ (once directly, once via
+/// warmup_insurance_reserved inside insurance_spendable_unreserved), returning 0
+/// even though raw insurance above the floor is still available.
+///
+/// Setup: floor=0, insurance=100, W-=0, W+=50.
+///   reserved = min(W+ - W-, raw) = min(50, 100) = 50
+///   unreserved = raw - reserved = 100 - 50 = 50
+///   BUG:  budget = W- + unreserved - W+ = 0 + 50 - 50 = 0  (should be 50)
+///   FIX:  budget = W- + raw - W+ = 0 + 100 - 50 = 50
+#[test]
+fn test_warmup_budget_no_double_subtraction() {
+    let mut params = default_params();
+    params.risk_reduction_threshold = U128::new(0); // floor = 0
+
+    let mut engine = Box::new(RiskEngine::new(params));
+    let user = engine.add_user(0).unwrap();
+    let counterparty = engine.add_user(0).unwrap();
+
+    // Insurance provides budget
+    set_insurance(&mut engine, 100);
+
+    // Zero-sum PnL
+    engine.accounts[user as usize].pnl = I128::new(500);
+    engine.accounts[counterparty as usize].pnl = I128::new(-500);
+
+    // Simulate that 50 of positive PnL has already been warmed
+    engine.warmed_pos_total = U128::new(50);
+    engine.warmed_neg_total = U128::new(0);
+    engine.recompute_warmup_insurance_reserved();
+
+    // Verify intermediate values
+    assert_eq!(engine.insurance_spendable_raw(), 100);
+    assert_eq!(engine.warmup_insurance_reserved.get(), 50);
+
+    // The key assertion: budget should be 50, not 0
+    assert_eq!(
+        engine.warmup_budget_remaining(),
+        50,
+        "warmup budget double-subtraction: budget should be raw - W+ = 50, not 0"
+    );
+}
+
+/// End-to-end: with the fix, a second settle_warmup_to_capital call should
+/// warm additional PnL (up to raw insurance), not stall at the first settle.
+#[test]
+fn test_warmup_budget_allows_second_settle() {
+    let mut params = default_params();
+    params.risk_reduction_threshold = U128::new(0);
+
+    let mut engine = Box::new(RiskEngine::new(params));
+    let user = engine.add_user(0).unwrap();
+    let counterparty = engine.add_user(0).unwrap();
+
+    set_insurance(&mut engine, 200);
+
+    // Zero-sum PnL: user +1000, counterparty -1000
+    engine.accounts[user as usize].pnl = I128::new(1000);
+    engine.accounts[counterparty as usize].pnl = I128::new(-1000);
+    engine.accounts[user as usize].warmup_slope_per_step = U128::new(100);
+    engine.accounts[user as usize].warmup_started_at_slot = 0;
+    assert_conserved(&engine);
+
+    // First settle at slot 1 — cap = 100, budget = 200, should warm 100
+    engine.current_slot = 1;
+    engine.settle_warmup_to_capital(user).unwrap();
+    assert_eq!(engine.warmed_pos_total.get(), 100);
+    assert_eq!(engine.accounts[user as usize].capital.get(), 100);
+
+    // Second settle at slot 2 — cap = 200, budget should still be 100 (200 - 100)
+    engine.current_slot = 2;
+    engine.settle_warmup_to_capital(user).unwrap();
+    assert_eq!(
+        engine.warmed_pos_total.get(),
+        200,
+        "second settle should warm another 100, not stall"
+    );
+    assert_eq!(engine.accounts[user as usize].capital.get(), 200);
+}

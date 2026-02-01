@@ -4047,14 +4047,20 @@ impl RiskEngine {
             .saturating_sub(self.warmup_insurance_reserved.get())
     }
 
-    /// Returns remaining warmup budget for converting positive PnL to capital
-    /// Budget = max(0, warmed_neg_total + unreserved_spendable_insurance - warmed_pos_total)
+    /// Remaining warmup budget for converting positive PnL to capital.
+    ///
+    /// Backing capacity for warmed profits is:
+    ///     W- (realized losses paid from capital)
+    ///   + raw_spendable_insurance (insurance above the floor)
+    ///
+    /// So remaining capacity is:
+    ///     max(0, W- + raw - W+)
     #[inline]
     pub fn warmup_budget_remaining(&self) -> u128 {
         let rhs = self
             .warmed_neg_total
             .get()
-            .saturating_add(self.insurance_spendable_unreserved());
+            .saturating_add(self.insurance_spendable_raw());
         rhs.saturating_sub(self.warmed_pos_total.get())
     }
 
