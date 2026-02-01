@@ -1624,6 +1624,9 @@ fn test_warmup_freezes_in_risk_mode() {
     let w1 = engine.withdrawable_pnl(&engine.accounts[user as usize]);
     assert_eq!(w1, 100, "After 10 slots, 10*10=100 should be warmed");
 
+    // Set loss_accum > 0 so warmup will pause on enter_risk_reduction_only_mode
+    engine.loss_accum = U128::new(1);
+
     // Trigger crisis mode at slot 10
     engine.enter_risk_reduction_only_mode();
     assert!(engine.warmup_paused);
@@ -2781,7 +2784,10 @@ fn test_warmup_budget_frozen_in_risk_mode() {
         "Should warm 100 (cap = 10 * 10)"
     );
 
-    // Enter risk mode (freezes warmup at slot 10)
+    // Set loss_accum > 0 so warmup will pause on enter_risk_reduction_only_mode
+    engine.loss_accum = U128::new(1);
+
+    // Enter risk mode (freezes warmup at slot 10 because loss_accum > 0)
     engine.enter_risk_reduction_only_mode();
     assert!(engine.warmup_paused);
     assert_eq!(engine.warmup_pause_slot, 10);
@@ -7638,27 +7644,22 @@ fn test_recover_stranded_basic() {
     assert_eq!(engine.insurance_fund.balance.get(), 1_000);
     assert_eq!(engine.accounts[lp as usize].pnl.get(), 500_000);
 
-    // stranded = vault - capital - insurance = 401_000 - 100_000 - 1_000 = 300_000
-    // total_needed = stranded + loss_accum = 300_000 + 200_000 = 500_000
-    // haircut = min(500_000, total_positive_pnl=500_000) = 500_000
+    // haircut = min(loss_accum, total_positive_pnl) = min(200_000, 500_000) = 200_000
     let haircut = engine.recover_stranded_to_insurance().unwrap();
-    assert_eq!(haircut, 500_000);
+    assert_eq!(haircut, 200_000);
 
-    // ALL positive PnL moved to insurance — LP PnL zeroed
-    assert_eq!(engine.accounts[lp as usize].pnl.get(), 0);
+    // LP retains legitimate profit: 500_000 - 200_000 = 300_000
+    assert_eq!(engine.accounts[lp as usize].pnl.get(), 300_000);
 
     // loss_accum should be zero
     assert_eq!(engine.loss_accum.get(), 0);
 
-    // Insurance = old + (haircut - loss_accum) = 1_000 + (500_000 - 200_000) = 301_000
-    assert_eq!(engine.insurance_fund.balance.get(), 301_000);
+    // Insurance unchanged — no topup
+    assert_eq!(engine.insurance_fund.balance.get(), 1_000);
 
-    // Risk-reduction mode should be exited
-    assert!(!engine.risk_reduction_only);
+    // Warmup unpaused (loss_accum=0), but risk_reduction_only stays (insurance < threshold)
+    assert!(engine.risk_reduction_only);
     assert!(!engine.warmup_paused);
-
-    // No stranded funds remain
-    assert_eq!(engine.stranded_funds(), 0);
 
     // Conservation must hold
     assert_conserved(&engine);
@@ -7672,9 +7673,15 @@ fn test_recover_stranded_warmup_reset() {
 
     let _haircut = engine.recover_stranded_to_insurance().unwrap();
 
-    // All positive PnL is zeroed, so warmup state doesn't matter for this account.
-    // But verify PnL is zero and conservation holds.
-    assert_eq!(engine.accounts[lp as usize].pnl.get(), 0);
+    // LP retains legitimate profit: 500_000 - 200_000 = 300_000
+    assert_eq!(engine.accounts[lp as usize].pnl.get(), 300_000);
+
+    // Warmup slope updated for new PnL (300_000 / 100 slots = 3_000)
+    assert_eq!(
+        engine.accounts[lp as usize].warmup_slope_per_step.get(),
+        3_000
+    );
+
     assert_conserved(&engine);
 
     // LP can still withdraw their capital (100_000)
@@ -7750,20 +7757,18 @@ fn test_recover_stranded_proportional_haircut_multiple_accounts() {
 
     assert_conserved(&engine);
 
-    // stranded = 40_000 - 20_000 - 0 = 20_000
-    // total_needed = 20_000 + 20_000 = 40_000 = total_positive_pnl
-    // All PnL is moved to insurance
+    // haircut = min(loss_accum=20_000, total_pnl=40_000) = 20_000
+    // Proportional: a gets 3/4 * 20_000 = 15_000, b gets 1/4 * 20_000 = 5_000
     let haircut = engine.recover_stranded_to_insurance().unwrap();
-    assert_eq!(haircut, 40_000);
+    assert_eq!(haircut, 20_000);
 
-    // Both accounts zeroed proportionally (all PnL moved)
-    assert_eq!(engine.accounts[a as usize].pnl.get(), 0);
-    assert_eq!(engine.accounts[b as usize].pnl.get(), 0);
+    // Accounts retain legitimate profit
+    assert_eq!(engine.accounts[a as usize].pnl.get(), 15_000);
+    assert_eq!(engine.accounts[b as usize].pnl.get(), 5_000);
 
     assert_eq!(engine.loss_accum.get(), 0);
-    // Insurance = 0 + (40_000 - 20_000) = 20_000
-    assert_eq!(engine.insurance_fund.balance.get(), 20_000);
-    assert_eq!(engine.stranded_funds(), 0);
+    // Insurance unchanged — no topup
+    assert_eq!(engine.insurance_fund.balance.get(), 0);
     assert_conserved(&engine);
 }
 
@@ -7777,38 +7782,33 @@ fn test_recover_stranded_partial_when_insufficient_pnl() {
     engine.deposit(lp, 10_000, 0).unwrap();
     engine.accounts[lp as usize].pnl = I128::new(5_000); // Only 5_000 PnL
 
-    // loss_accum much larger than PnL
-    engine.loss_accum = U128::new(50_000);
+    engine.loss_accum = U128::new(3_000);
     engine.risk_reduction_only = true;
     engine.warmup_paused = true;
     engine.warmup_pause_slot = 0;
     engine.total_open_interest = U128::ZERO;
 
-    // Conservation: vault + 50_000 = 10_000 + 5_000 + 0 → vault = -35_000?
-    // That doesn't work. loss_accum can't exceed sum(pnl) in a valid state.
-    // In practice, loss_accum <= total PnL credited. Let's use realistic numbers.
-    engine.loss_accum = U128::new(3_000);
     // vault + 3_000 = 10_000 + 5_000 + 0 → vault = 12_000
     engine.vault = U128::new(12_000);
 
     assert_conserved(&engine);
 
-    // needed = loss_accum + insurance_deficit = 3_000 + (100_000 - 0) = 103_000
-    // But total PnL = 5_000, so haircut = min(103_000, 5_000) = 5_000
+    // haircut = min(loss_accum=3_000, total_pnl=5_000) = 3_000
     let haircut = engine.recover_stranded_to_insurance().unwrap();
-    assert_eq!(haircut, 5_000);
+    assert_eq!(haircut, 3_000);
 
-    // All PnL is consumed
-    assert_eq!(engine.accounts[lp as usize].pnl.get(), 0);
+    // LP retains 5_000 - 3_000 = 2_000
+    assert_eq!(engine.accounts[lp as usize].pnl.get(), 2_000);
 
-    // loss_accum reduced by min(5_000, 3_000) = 3_000
+    // loss_accum fully cleared
     assert_eq!(engine.loss_accum.get(), 0);
 
-    // Insurance gets remaining: 5_000 - 3_000 = 2_000
-    assert_eq!(engine.insurance_fund.balance.get(), 2_000);
+    // Insurance unchanged — no topup
+    assert_eq!(engine.insurance_fund.balance.get(), 0);
 
-    // Still in risk-reduction because insurance < threshold (2_000 < 100_000)
+    // Still in risk-reduction (insurance < threshold), but warmup unpaused
     assert!(engine.risk_reduction_only);
+    assert!(!engine.warmup_paused);
 
     assert_conserved(&engine);
 }
@@ -7872,8 +7872,9 @@ fn test_recover_stranded_via_crank() {
 fn test_recover_stranded_conservation_proof() {
     // Verify the conservation proof from the code comment:
     //   Before: vault + L = C + P + I + slack
-    //   After:  vault + (L - R) = C + (P - H) + (I + T) + slack
-    //   where H = haircut, R = loss_reduction, T = insurance_topup = H - R
+    //   After:  vault + (L - H) = C + (P - H) + I + slack
+    //   where H = haircut = min(loss_accum, total_positive_pnl)
+    //   Both sides decrease by H. No insurance change.
     let (mut engine, lp) = setup_stranded_funds_scenario();
 
     let before_vault = engine.vault.get();
@@ -7903,13 +7904,15 @@ fn test_recover_stranded_conservation_proof() {
         "PnL should decrease by exactly the haircut amount"
     );
 
-    // loss_reduction + insurance_topup = haircut
+    // All haircut goes to loss_accum reduction. No insurance topup.
     let loss_reduction = before_loss - after_loss;
-    let insurance_topup = after_insurance - before_insurance;
     assert_eq!(
-        loss_reduction + insurance_topup,
-        haircut as u128,
-        "loss_reduction + insurance_topup must equal haircut"
+        loss_reduction, haircut as u128,
+        "All haircut should reduce loss_accum"
+    );
+    assert_eq!(
+        before_insurance, after_insurance,
+        "Insurance should not change"
     );
 
     // Conservation still holds
@@ -7945,21 +7948,19 @@ fn test_recover_stranded_negative_pnl_accounts_ignored() {
 
     assert_conserved(&engine);
 
-    // stranded = 25_000 - 20_000 - 0 = 5_000
-    // total_needed = 5_000 + 10_000 = 15_000
-    // haircut = min(15_000, total_positive_pnl=20_000) = 15_000
+    // haircut = min(loss_accum=10_000, total_positive_pnl=20_000) = 10_000
     let haircut = engine.recover_stranded_to_insurance().unwrap();
-    assert_eq!(haircut, 15_000);
+    assert_eq!(haircut, 10_000);
 
-    // Winner's PnL haircut by 15_000 (only account with positive PnL)
-    assert_eq!(engine.accounts[winner as usize].pnl.get(), 5_000);
+    // Winner's PnL haircut by 10_000 (only account with positive PnL)
+    assert_eq!(engine.accounts[winner as usize].pnl.get(), 10_000);
 
     // Loser's negative PnL is unchanged
     assert_eq!(engine.accounts[loser as usize].pnl.get(), -5_000);
 
     assert_eq!(engine.loss_accum.get(), 0);
-    // insurance = 0 + (15_000 - 10_000) = 5_000
-    assert_eq!(engine.insurance_fund.balance.get(), 5_000);
+    // Insurance unchanged — no topup
+    assert_eq!(engine.insurance_fund.balance.get(), 0);
     assert_conserved(&engine);
 }
 
@@ -7967,12 +7968,20 @@ fn test_recover_stranded_negative_pnl_accounts_ignored() {
 fn test_recover_stranded_exits_risk_reduction_mode() {
     let (mut engine, _lp) = setup_stranded_funds_scenario();
 
+    // Raise insurance above threshold so full exit can happen
+    engine.insurance_fund.balance = U128::new(10_000);
+    // Fix conservation: vault changes to account for new insurance
+    // vault + loss_accum = capital + pnl + insurance
+    // vault + 200_000 = 100_000 + 500_000 + 10_000 → vault = 410_000
+    engine.vault = U128::new(410_000);
+    assert_conserved(&engine);
+
     assert!(engine.risk_reduction_only);
     assert!(engine.warmup_paused);
 
     engine.recover_stranded_to_insurance().unwrap();
 
-    // Should have exited risk-reduction mode (loss_accum=0, insurance>=threshold)
+    // Should have fully exited risk-reduction mode (loss_accum=0, insurance>=threshold)
     assert!(
         !engine.risk_reduction_only,
         "Should exit risk-reduction mode after recovery"
@@ -7987,7 +7996,7 @@ fn test_recover_stranded_exits_risk_reduction_mode() {
 
 #[test]
 fn test_stranded_funds_full_lifecycle() {
-    // End-to-end test: stranded funds → all move to insurance → LP withdraws capital
+    // End-to-end test: stranded funds → haircut loss_accum → LP retains profit
     let mut params = default_params();
     params.risk_reduction_threshold = U128::new(500);
     params.warmup_period_slots = 10;
@@ -8001,13 +8010,13 @@ fn test_stranded_funds_full_lifecycle() {
     engine.accounts[lp as usize].warmup_slope_per_step = U128::new(8_000);
     engine.accounts[lp as usize].warmup_started_at_slot = 0;
 
-    // Post-crash state: all positions closed, insurance depleted
+    // Post-crash state: all positions closed, insurance above threshold
     engine.loss_accum = U128::new(30_000);
     engine.risk_reduction_only = true;
     engine.warmup_paused = true;
     engine.warmup_pause_slot = 5;
     engine.total_open_interest = U128::ZERO;
-    engine.insurance_fund.balance = U128::new(100);
+    engine.insurance_fund.balance = U128::new(600); // Above threshold (500)
 
     // W- from settled trader losses (traders paid from capital before exhaustion)
     engine.warmed_neg_total = U128::new(20_000);
@@ -8015,9 +8024,9 @@ fn test_stranded_funds_full_lifecycle() {
 
     // Fix vault for conservation:
     // vault + loss_accum = capital + pnl + insurance
-    // vault + 30_000 = 50_000 + 80_000 + 100
-    // vault = 100_100
-    engine.vault = U128::new(100_100);
+    // vault + 30_000 = 50_000 + 80_000 + 600
+    // vault = 100_600
+    engine.vault = U128::new(100_600);
 
     engine.recompute_warmup_insurance_reserved();
     assert_conserved(&engine);
@@ -8028,28 +8037,218 @@ fn test_stranded_funds_full_lifecycle() {
     assert!(engine.risk_reduction_only);
     assert!(engine.warmup_paused);
 
-    // Run recovery: ALL stranded funds move to insurance
+    // Run recovery: only haircut loss_accum (30_000), not all PnL
     let haircut = engine.recover_stranded_to_insurance().unwrap();
-    assert_eq!(haircut, 80_000, "All positive PnL should be haircut");
+    assert_eq!(haircut, 30_000, "Should haircut only loss_accum amount");
 
     // loss_accum should be zero
     assert_eq!(engine.loss_accum.get(), 0, "loss_accum should be cleared");
 
-    // Insurance = 100 + (80_000 - 30_000) = 50_100
-    assert_eq!(engine.insurance_fund.balance.get(), 50_100);
+    // Insurance unchanged — no topup
+    assert_eq!(engine.insurance_fund.balance.get(), 600);
 
-    // Risk-reduction mode should be exited
-    assert!(!engine.risk_reduction_only, "Should exit risk-reduction mode");
+    // Risk-reduction mode should be fully exited (insurance >= threshold and loss_accum=0)
+    assert!(
+        !engine.risk_reduction_only,
+        "Should exit risk-reduction mode"
+    );
     assert!(!engine.warmup_paused, "Warmup should unpause");
 
-    // LP PnL is zero — all stranded funds went to insurance
-    assert_eq!(engine.accounts[lp as usize].pnl.get(), 0);
-
-    // No stranded funds remain
-    assert_eq!(engine.stranded_funds(), 0);
+    // LP retains legitimate profit: 80_000 - 30_000 = 50_000
+    assert_eq!(engine.accounts[lp as usize].pnl.get(), 50_000);
 
     // LP can still withdraw their capital
     assert_eq!(engine.accounts[lp as usize].capital.get(), 50_000);
 
+    assert_conserved(&engine);
+}
+
+// ==============================================================================
+// FIX A: Recovery should only haircut loss_accum, not stranded + loss_accum
+// ==============================================================================
+
+#[test]
+fn test_recover_only_haircuts_loss_accum() {
+    // Setup: LP pnl=500_000, loss_accum=200_000
+    // CORRECT: haircut = loss_accum = 200_000, LP retains 300_000 legitimate profit
+    // WRONG (old): haircut = stranded + loss_accum = 500_000, LP retains 0
+    let (mut engine, lp) = setup_stranded_funds_scenario();
+
+    // Verify preconditions
+    assert_eq!(engine.accounts[lp as usize].pnl.get(), 500_000);
+    assert_eq!(engine.loss_accum.get(), 200_000);
+
+    let haircut = engine.recover_stranded_to_insurance().unwrap();
+
+    // Fix A: Only haircut loss_accum amount
+    assert_eq!(
+        haircut, 200_000,
+        "Should only haircut loss_accum (200k), not stranded+loss_accum (500k)"
+    );
+
+    // LP retains legitimate profit: 500_000 - 200_000 = 300_000
+    assert_eq!(
+        engine.accounts[lp as usize].pnl.get(),
+        300_000,
+        "LP should retain PnL - loss_accum"
+    );
+
+    // loss_accum fully cleared
+    assert_eq!(engine.loss_accum.get(), 0);
+
+    // Conservation must hold
+    assert_conserved(&engine);
+}
+
+#[test]
+fn test_recover_no_insurance_topup() {
+    // Fix A: Recovery should NOT top up insurance — it only reduces loss_accum.
+    // The haircut removes phantom claims, not real value.
+    let (mut engine, _lp) = setup_stranded_funds_scenario();
+
+    let insurance_before = engine.insurance_fund.balance.get();
+    assert_eq!(insurance_before, 1_000);
+
+    engine.recover_stranded_to_insurance().unwrap();
+
+    // Insurance should be unchanged — no topup
+    assert_eq!(
+        engine.insurance_fund.balance.get(),
+        insurance_before,
+        "Recovery should not top up insurance"
+    );
+
+    assert_conserved(&engine);
+}
+
+#[test]
+fn test_recover_proportional_partial_haircut() {
+    // Two accounts with positive PnL, loss_accum < total PnL
+    // Both should retain proportional legitimate profit
+    let mut params = default_params();
+    params.risk_reduction_threshold = U128::new(0);
+    params.warmup_period_slots = 100;
+    let mut engine = Box::new(RiskEngine::new(params));
+
+    let a = engine.add_user(0).unwrap();
+    engine.deposit(a, 10_000, 0).unwrap();
+    engine.accounts[a as usize].pnl = I128::new(30_000); // 3/4 of total PnL
+
+    let b = engine.add_user(0).unwrap();
+    engine.deposit(b, 10_000, 0).unwrap();
+    engine.accounts[b as usize].pnl = I128::new(10_000); // 1/4 of total PnL
+
+    engine.loss_accum = U128::new(20_000); // Only 20k of 40k PnL is phantom
+    engine.risk_reduction_only = true;
+    engine.warmup_paused = true;
+    engine.warmup_pause_slot = 0;
+    engine.total_open_interest = U128::ZERO;
+
+    // vault + loss_accum = capital + pnl + insurance
+    // vault + 20_000 = 20_000 + 40_000 + 0 → vault = 40_000
+    engine.vault = U128::new(40_000);
+    assert_conserved(&engine);
+
+    let haircut = engine.recover_stranded_to_insurance().unwrap();
+    assert_eq!(haircut, 20_000, "Haircut should equal loss_accum");
+
+    // Proportional: a gets 3/4 of haircut = 15_000, b gets 1/4 = 5_000
+    assert_eq!(
+        engine.accounts[a as usize].pnl.get(),
+        15_000,
+        "Account a retains 30k - 15k = 15k"
+    );
+    assert_eq!(
+        engine.accounts[b as usize].pnl.get(),
+        5_000,
+        "Account b retains 10k - 5k = 5k"
+    );
+
+    assert_eq!(engine.loss_accum.get(), 0);
+    assert_eq!(
+        engine.insurance_fund.balance.get(),
+        0,
+        "No insurance topup"
+    );
+    assert_conserved(&engine);
+}
+
+// ==============================================================================
+// FIX B: Warmup pause decoupled from insurance threshold when flat
+// ==============================================================================
+
+#[test]
+fn test_warmup_unpauses_when_flat_even_below_threshold() {
+    // After recovery clears loss_accum, warmup should unpause
+    // even if insurance < risk_reduction_threshold
+    let (mut engine, _lp) = setup_stranded_funds_scenario();
+
+    // threshold is 5_000, insurance is 1_000
+    assert!(engine.insurance_fund.balance.get() < engine.params.risk_reduction_threshold.get());
+    assert!(engine.warmup_paused);
+
+    engine.recover_stranded_to_insurance().unwrap();
+
+    // loss_accum should be zero after recovery
+    assert_eq!(engine.loss_accum.get(), 0);
+
+    // Fix B: Warmup should unpause when flat, regardless of insurance level
+    assert!(
+        !engine.warmup_paused,
+        "Warmup should unpause when loss_accum=0 even if insurance < threshold"
+    );
+
+    // risk_reduction_only may still be true (insurance < threshold) — that's OK
+    // The key is that warmup is NOT paused, so LPs can convert PnL to capital
+}
+
+#[test]
+fn test_enter_risk_mode_no_warmup_pause_when_solvent() {
+    // If entering risk-reduction mode while loss_accum = 0
+    // (e.g., insurance hit zero but no socialized loss yet),
+    // warmup should NOT be paused.
+    let mut engine = Box::new(RiskEngine::new(default_params()));
+    let _lp = engine.add_lp([1u8; 32], [2u8; 32], 0).unwrap();
+    engine.deposit(_lp, 100_000, 0).unwrap();
+
+    assert!(!engine.warmup_paused);
+    assert!(engine.loss_accum.is_zero());
+
+    engine.enter_risk_reduction_only_mode();
+
+    assert!(engine.risk_reduction_only);
+    // Fix B: Warmup should NOT pause when loss_accum = 0
+    assert!(
+        !engine.warmup_paused,
+        "Warmup should not pause when there's no actual insolvency (loss_accum=0)"
+    );
+}
+
+// ==============================================================================
+// FIX C: Recovery should not restart warmup_started_at_slot
+// ==============================================================================
+
+#[test]
+fn test_recover_does_not_restart_warmup_started_at() {
+    let (mut engine, lp) = setup_stranded_funds_scenario();
+
+    // LP had warmup started at slot 0 (from setup)
+    engine.accounts[lp as usize].warmup_started_at_slot = 10;
+    engine.current_slot = 50;
+
+    engine.recover_stranded_to_insurance().unwrap();
+
+    // LP should still have positive PnL (300k after fix A)
+    assert!(engine.accounts[lp as usize].pnl.get() > 0);
+
+    // Fix C: warmup_started_at_slot should NOT be reset to current_slot
+    // Since warmup is paused, update_warmup_slope preserves started_at
+    assert_eq!(
+        engine.accounts[lp as usize].warmup_started_at_slot, 10,
+        "warmup_started_at_slot should not be restarted during recovery (warmup is paused)"
+    );
+
+    // But warmup_slope should be updated for the new (haircut) PnL
+    assert!(engine.accounts[lp as usize].warmup_slope_per_step.get() > 0);
     assert_conserved(&engine);
 }

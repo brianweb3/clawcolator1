@@ -434,8 +434,9 @@ fn inv_accounting(engine: &RiskEngine) -> bool {
 
 /// Mode invariant: risk mode and warmup pause consistency
 fn inv_mode(engine: &RiskEngine) -> bool {
-    // M1: risk_reduction_only ⇒ warmup_paused
-    if engine.risk_reduction_only && !engine.warmup_paused {
+    // M1: risk_reduction_only with active insolvency ⇒ warmup_paused
+    // Warmup may be unpaused when loss_accum = 0 (flat) even in risk-reduction mode.
+    if engine.risk_reduction_only && !engine.loss_accum.is_zero() && !engine.warmup_paused {
         return false;
     }
 

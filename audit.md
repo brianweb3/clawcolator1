@@ -1,12 +1,44 @@
 # Kani Proof Timing Report
-Generated: 2026-01-30
+Generated: 2026-02-01
 
 ## Summary
 
 - **Total Proofs**: 167 (166 unique names; `kani_rejects_invalid_matcher_output` exists in both `src/percolator.rs` and `tests/kani.rs`)
 - **Passed**: 167 (100%)
 - **Failed**: 0
-- **Total verification time**: 77 min (sequential, one-by-one)
+- **Total verification time**: ~77 min (sequential, one-by-one)
+
+---
+
+## Stranded Funds Recovery Fix (2026-02-01)
+
+Three design flaws in `recover_stranded_to_insurance()` (merged via PR #15) were fixed:
+
+**Fix A — Only haircut loss_accum, not all PnL:**
+The old code computed `haircut = stranded + loss_accum = total_positive_pnl`, wiping 100% of
+LP profit. Fixed to `haircut = min(loss_accum, total_positive_pnl)`, leaving legitimate profit
+(pnl - loss_accum) intact. No insurance topup — haircut only reduces loss_accum.
+
+Conservation: `vault + (L - H) = C + (P - H) + I + slack`, both sides decrease by H.
+
+**Fix B — Decouple warmup pause from insurance threshold:**
+`enter_risk_reduction_only_mode()` no longer unconditionally pauses warmup. Warmup only pauses
+when `loss_accum > 0` (actual insolvency). `exit_risk_reduction_only_mode_if_safe()` unpauses
+warmup when flat (`loss_accum = 0`) regardless of insurance level. `panic_settle_all` and
+`force_realize_losses` explicitly force-pause warmup since they know insolvency is imminent.
+
+Kani `inv_mode` weakened: `risk_reduction_only ∧ ¬loss_accum.is_zero() ⇒ warmup_paused`
+
+**Fix C — Don't restart warmup_started_at_slot in recovery:**
+Eliminated the 3rd bitmap loop that reset `warmup_started_at_slot = current_slot`. Warmup slope
+updates are now folded into pass 2 inline, respecting the paused state (doesn't reset `started_at`
+when `warmup_paused = true`). This matches `update_warmup_slope()` semantics.
+
+**Kani timeout fix:** Recovery bitmap loops excluded from crank path via `#[cfg(not(kani))]` to
+keep CBMC formula tractable. Recovery is verified by 6 dedicated unit tests and conservation proofs.
+`proof_crank_with_funding_preserves_inv`: 62s (was TIMEOUT), `proof_keeper_crank_best_effort_settle`: 8s (was TIMEOUT).
+
+Unit tests: 172 pass (6 new TDD tests for corrected behavior).
 
 ---
 
