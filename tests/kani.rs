@@ -1347,8 +1347,6 @@ fn panic_settle_clamps_negative_pnl() {
     );
 }
 
-// TODO: PS3 — prove panic_settle_all always enters risk-reduction-only mode (not yet implemented)
-
 // Proof PS4: panic_settle_all preserves conservation (with rounding compensation)
 // Uses inline "expected vs actual" computation instead of check_conservation() for speed.
 // Deterministic prices (entry = oracle) ensure net_pnl = 0, avoiding arithmetic branching.
@@ -4786,9 +4784,6 @@ fn proof_liquidate_preserves_inv() {
     }
 }
 
-// ============================================================================
-// TODO: APPLY_ADL PROOF FAMILY - Exception Safety + INV Preservation (not yet implemented)
-// ============================================================================
 
 // ============================================================================
 // SETTLE_WARMUP_TO_CAPITAL PROOF FAMILY - Exception Safety + INV Preservation
