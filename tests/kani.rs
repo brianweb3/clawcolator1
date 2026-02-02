@@ -1032,17 +1032,18 @@ fn funding_p3_bounded_drift_between_opposite_positions() {
     let user_result = engine.touch_account(user_idx);
     let lp_result = engine.touch_account(lp_idx);
 
-    // If both settlements succeeded, check bounded drift
-    if user_result.is_ok() && lp_result.is_ok() {
-        let total_after =
-            engine.accounts[user_idx as usize].pnl + engine.accounts[lp_idx as usize].pnl;
-        let change = total_after - total_before;
+    // Non-vacuity: both settlements must succeed
+    assert!(user_result.is_ok(), "non-vacuity: user settlement must succeed");
+    assert!(lp_result.is_ok(), "non-vacuity: LP settlement must succeed");
 
-        // Funding should not create value (vault keeps rounding dust)
-        assert!(change.get() <= 0, "Funding must not create value");
-        // Change should be bounded by rounding (at most -2 per account pair)
-        assert!(change.get() >= -2, "Funding drift must be bounded");
-    }
+    let total_after =
+        engine.accounts[user_idx as usize].pnl + engine.accounts[lp_idx as usize].pnl;
+    let change = total_after - total_before;
+
+    // Funding should not create value (vault keeps rounding dust)
+    assert!(change.get() <= 0, "Funding must not create value");
+    // Change should be bounded by rounding (at most -2 per account pair)
+    assert!(change.get() >= -2, "Funding drift must be bounded");
 }
 
 #[kani::proof]
@@ -1495,7 +1496,10 @@ fn proof_c1_conservation_bounded_slack_force_realize() {
     engine.insurance_fund.balance = U128::new(floor);
     engine.vault = U128::new(capital * 2 + floor);
 
-    let _ = engine.force_realize_losses(oracle_price);
+    let result = engine.force_realize_losses(oracle_price);
+
+    // Non-vacuity: force_realize must succeed
+    assert!(result.is_ok(), "non-vacuity: force_realize_losses must succeed");
 
     let total_capital = engine.accounts[user1 as usize].capital.get()
         + engine.accounts[user2 as usize].capital.get();
@@ -1566,7 +1570,10 @@ fn audit_force_realize_updates_warmup_start() {
     engine.current_slot = current_slot;
 
     // Force realize
-    let _ = engine.force_realize_losses(oracle_price);
+    let result = engine.force_realize_losses(oracle_price);
+
+    // Non-vacuity: force_realize must succeed
+    assert!(result.is_ok(), "non-vacuity: force_realize_losses must succeed");
 
     // After force_realize, warmup_started_at_slot should be updated
     let effective_slot = engine.current_slot;
@@ -1820,35 +1827,34 @@ fn fast_frame_execute_trade_only_mutates_two_accounts() {
     let matcher = NoOpMatcher;
     let res = engine.execute_trade(&matcher, lp_idx, user_idx, 0, 1_000_000, delta);
 
-    // Only assert frame properties when trade succeeds
-    // (Kani doesn't model Solana transaction atomicity - failed trades don't revert state)
-    if res.is_ok() {
-        // Assert: observer account completely unchanged
-        let observer_after = &engine.accounts[observer_idx as usize];
-        assert!(
-            observer_after.capital.get() == observer_snapshot.capital,
-            "Frame: observer capital unchanged"
-        );
-        assert!(
-            observer_after.pnl.get() == observer_snapshot.pnl,
-            "Frame: observer pnl unchanged"
-        );
-        assert!(
-            observer_after.position_size.get() == observer_snapshot.position_size,
-            "Frame: observer position unchanged"
-        );
+    // Non-vacuity: trade must succeed with well-capitalized accounts and small delta
+    assert!(res.is_ok(), "non-vacuity: execute_trade must succeed");
 
-        // Assert: vault unchanged (trades don't change vault)
-        assert!(
-            engine.vault.get() == vault_before.get(),
-            "Frame: vault unchanged by trade"
-        );
-        // Assert: insurance may increase due to fees
-        assert!(
-            engine.insurance_fund.balance >= insurance_before,
-            "Frame: insurance >= before (fees added)"
-        );
-    }
+    // Assert: observer account completely unchanged
+    let observer_after = &engine.accounts[observer_idx as usize];
+    assert!(
+        observer_after.capital.get() == observer_snapshot.capital,
+        "Frame: observer capital unchanged"
+    );
+    assert!(
+        observer_after.pnl.get() == observer_snapshot.pnl,
+        "Frame: observer pnl unchanged"
+    );
+    assert!(
+        observer_after.position_size.get() == observer_snapshot.position_size,
+        "Frame: observer position unchanged"
+    );
+
+    // Assert: vault unchanged (trades don't change vault)
+    assert!(
+        engine.vault.get() == vault_before.get(),
+        "Frame: vault unchanged by trade"
+    );
+    // Assert: insurance may increase due to fees
+    assert!(
+        engine.insurance_fund.balance >= insurance_before,
+        "Frame: insurance >= before (fees added)"
+    );
 }
 
 /// Frame proof: settle_warmup_to_capital only mutates one account and warmup globals
@@ -1965,9 +1971,9 @@ fn fast_valid_preserved_by_deposit() {
 
     let res = engine.deposit(user_idx, amount, 0);
 
-    if res.is_ok() {
-        assert!(valid_state(&engine), "valid_state preserved by deposit");
-    }
+    // Non-vacuity: deposit must succeed
+    assert!(res.is_ok(), "non-vacuity: deposit must succeed");
+    assert!(valid_state(&engine), "valid_state preserved by deposit");
 }
 
 /// Validity preserved by withdraw
@@ -2018,14 +2024,12 @@ fn fast_valid_preserved_by_execute_trade() {
     let matcher = NoOpMatcher;
     let res = engine.execute_trade(&matcher, lp_idx, user_idx, 0, 1_000_000, delta);
 
-    // Only assert validity when trade succeeds
-    // (Kani doesn't model Solana transaction atomicity - failed trades don't revert state)
-    if res.is_ok() {
-        assert!(
-            valid_state(&engine),
-            "valid_state preserved by execute_trade"
-        );
-    }
+    // Non-vacuity: trade must succeed with well-capitalized accounts and small delta
+    assert!(res.is_ok(), "non-vacuity: execute_trade must succeed");
+    assert!(
+        valid_state(&engine),
+        "valid_state preserved by execute_trade"
+    );
 }
 
 /// Validity preserved by settle_warmup_to_capital
@@ -2105,12 +2109,12 @@ fn fast_valid_preserved_by_panic_settle_all() {
 
     let res = engine.panic_settle_all(oracle_price);
 
-    if res.is_ok() {
-        assert!(
-            valid_state(&engine),
-            "valid_state preserved by panic_settle_all"
-        );
-    }
+    // Non-vacuity: panic_settle_all must succeed
+    assert!(res.is_ok(), "non-vacuity: panic_settle_all must succeed");
+    assert!(
+        valid_state(&engine),
+        "valid_state preserved by panic_settle_all"
+    );
 }
 
 /// Validity preserved by force_realize_losses
@@ -2149,16 +2153,16 @@ fn fast_valid_preserved_by_force_realize_losses() {
 
     let res = engine.force_realize_losses(oracle_price);
 
-    // If successful, verify basic invariants without full valid_state check
-    if res.is_ok() {
-        // Primary conservation: vault >= c_tot + insurance
-        let c_tot = engine.c_tot.get();
-        let insurance = engine.insurance_fund.balance.get();
-        assert!(
-            engine.vault.get() >= c_tot.saturating_add(insurance),
-            "force_realize must maintain primary conservation (V >= C_tot + I)"
-        );
-    }
+    // Non-vacuity: force_realize must succeed
+    assert!(res.is_ok(), "non-vacuity: force_realize_losses must succeed");
+
+    // Primary conservation: vault >= c_tot + insurance
+    let c_tot = engine.c_tot.get();
+    let insurance = engine.insurance_fund.balance.get();
+    assert!(
+        engine.vault.get() >= c_tot.saturating_add(insurance),
+        "force_realize must maintain primary conservation (V >= C_tot + I)"
+    );
 }
 
 /// Validity preserved by top_up_insurance_fund
@@ -2175,12 +2179,12 @@ fn fast_valid_preserved_by_top_up_insurance_fund() {
 
     let res = engine.top_up_insurance_fund(amount);
 
-    if res.is_ok() {
-        assert!(
-            valid_state(&engine),
-            "valid_state preserved by top_up_insurance_fund"
-        );
-    }
+    // Non-vacuity: top_up must succeed
+    assert!(res.is_ok(), "non-vacuity: top_up_insurance_fund must succeed");
+    assert!(
+        valid_state(&engine),
+        "valid_state preserved by top_up_insurance_fund"
+    );
 }
 
 // ============================================================================
@@ -3186,6 +3190,11 @@ fn proof_net_extraction_bounded_with_fee_credits() {
             "Withdrawal cannot exceed capital"
         );
     }
+
+    // Non-vacuity: when no trade/crank and withdrawal is within deposit, must succeed
+    if !do_trade && !do_crank && withdraw_amount <= attacker_deposit {
+        assert!(result.is_ok(), "non-vacuity: withdrawal within deposit must succeed without trade/crank");
+    }
 }
 
 // ============================================================================
@@ -4032,13 +4041,12 @@ fn crank_bounds_respected() {
         "CRANK-BOUNDS: outcome.last_cursor matches engine.crank_cursor"
     );
 
-    // last_full_sweep_completed_slot only updates when sweep completes
-    if outcome.sweep_complete {
-        assert!(
-            engine.last_full_sweep_completed_slot == now_slot,
-            "CRANK-BOUNDS: last_full_sweep_completed_slot updates on sweep complete"
-        );
-    }
+    // Non-vacuity: with single account, sweep must complete in one crank
+    assert!(outcome.sweep_complete, "non-vacuity: sweep must complete with single account");
+    assert!(
+        engine.last_full_sweep_completed_slot == now_slot,
+        "CRANK-BOUNDS: last_full_sweep_completed_slot updates on sweep complete"
+    );
 }
 
 // ==============================================================================
@@ -4148,13 +4156,18 @@ fn withdrawal_maintains_margin_above_maintenance() {
     // Try withdrawal
     let result = engine.withdraw(idx, amount, 100, oracle_price);
 
-    // If withdrawal succeeded and account has position, must be above maintenance
+    // Post-withdrawal with position must be above maintenance
     // NOTE: Must use MTM version since withdraw() checks MTM maintenance margin
     if result.is_ok() && !engine.accounts[idx as usize].position_size.is_zero() {
         assert!(
             engine.is_above_maintenance_margin_mtm(&engine.accounts[idx as usize], oracle_price),
             "Post-withdrawal account with position must be above maintenance margin"
         );
+    }
+
+    // Non-vacuity: with high capital and tiny withdrawal at entry price, must succeed
+    if capital >= 40_000 && amount <= 200 && oracle_price == entry_price {
+        assert!(result.is_ok(), "non-vacuity: tiny withdrawal from well-funded account at entry price must succeed");
     }
 }
 
@@ -4392,17 +4405,18 @@ fn proof_execute_trade_conservation() {
 
     let result = engine.execute_trade(&NoOpMatcher, lp_idx, user_idx, 100, price, delta_size);
 
-    if result.is_ok() {
-        // After successful trade, conservation must still hold (with funding settled)
-        // Touch both accounts to settle any funding
-        let _ = engine.touch_account(user_idx);
-        let _ = engine.touch_account(lp_idx);
+    // Non-vacuity: trade must succeed with bounded inputs
+    assert!(result.is_ok(), "non-vacuity: execute_trade must succeed");
 
-        kani::assert(
-            conservation_fast_no_funding(&engine),
-            "Conservation must hold after successful trade",
-        );
-    }
+    // After successful trade, conservation must still hold (with funding settled)
+    // Touch both accounts to settle any funding
+    let _ = engine.touch_account(user_idx);
+    let _ = engine.touch_account(lp_idx);
+
+    kani::assert(
+        conservation_fast_no_funding(&engine),
+        "Conservation must hold after successful trade",
+    );
 }
 
 /// execute_trade: Margin enforcement - successful trade leaves both parties above margin
@@ -4431,39 +4445,40 @@ fn proof_execute_trade_margin_enforcement() {
 
     let result = engine.execute_trade(&NoOpMatcher, lp_idx, user_idx, 100, price, delta_size);
 
-    if result.is_ok() {
-        // NON-VACUITY: trade actually happened
+    // Non-vacuity: trade must succeed with well-capitalized accounts
+    assert!(result.is_ok(), "non-vacuity: execute_trade must succeed");
+
+    // NON-VACUITY: trade actually happened
+    kani::assert(
+        !engine.accounts[user_idx as usize].position_size.is_zero(),
+        "Trade must create a position",
+    );
+
+    // MARGIN ENFORCEMENT: both parties must be above initial margin post-trade
+    // (or position closed which satisfies margin trivially)
+    // Use is_above_margin_bps_mtm with initial_margin_bps
+    let user_pos = engine.accounts[user_idx as usize].position_size;
+    let lp_pos = engine.accounts[lp_idx as usize].position_size;
+
+    if !user_pos.is_zero() {
         kani::assert(
-            !engine.accounts[user_idx as usize].position_size.is_zero(),
-            "Trade must create a position",
+            engine.is_above_margin_bps_mtm(
+                &engine.accounts[user_idx as usize],
+                price,
+                engine.params.initial_margin_bps,
+            ),
+            "User must be above initial margin after trade",
         );
-
-        // MARGIN ENFORCEMENT: both parties must be above initial margin post-trade
-        // (or position closed which satisfies margin trivially)
-        // Use is_above_margin_bps_mtm with initial_margin_bps
-        let user_pos = engine.accounts[user_idx as usize].position_size;
-        let lp_pos = engine.accounts[lp_idx as usize].position_size;
-
-        if !user_pos.is_zero() {
-            kani::assert(
-                engine.is_above_margin_bps_mtm(
-                    &engine.accounts[user_idx as usize],
-                    price,
-                    engine.params.initial_margin_bps,
-                ),
-                "User must be above initial margin after trade",
-            );
-        }
-        if !lp_pos.is_zero() {
-            kani::assert(
-                engine.is_above_margin_bps_mtm(
-                    &engine.accounts[lp_idx as usize],
-                    price,
-                    engine.params.initial_margin_bps,
-                ),
-                "LP must be above initial margin after trade",
-            );
-        }
+    }
+    if !lp_pos.is_zero() {
+        kani::assert(
+            engine.is_above_margin_bps_mtm(
+                &engine.accounts[lp_idx as usize],
+                price,
+                engine.params.initial_margin_bps,
+            ),
+            "LP must be above initial margin after trade",
+        );
     }
 }
 
@@ -4902,13 +4917,12 @@ fn proof_force_realize_preserves_inv() {
 
     let result = engine.force_realize_losses(1_000_000);
 
-    // INV only matters on Ok path (Solana tx aborts on Err, state discarded)
-    if result.is_ok() {
-        kani::assert(
-            canonical_inv(&engine),
-            "INV must hold after force_realize_losses",
-        );
-    }
+    // Non-vacuity: force_realize must succeed
+    assert!(result.is_ok(), "non-vacuity: force_realize_losses must succeed");
+    kani::assert(
+        canonical_inv(&engine),
+        "INV must hold after force_realize_losses",
+    );
 }
 
 // ============================================================================
@@ -5075,30 +5089,31 @@ fn proof_trade_creates_funding_settled_positions() {
 
     let result = engine.execute_trade(&NoOpMatcher, lp, user, 100, 1_000_000, delta);
 
-    if result.is_ok() {
-        // NON-VACUITY: Both accounts should have positions now
-        kani::assert(
-            !engine.accounts[user as usize].position_size.is_zero(),
-            "User must have position after trade",
-        );
-        kani::assert(
-            !engine.accounts[lp as usize].position_size.is_zero(),
-            "LP must have position after trade",
-        );
+    // Non-vacuity: trade must succeed with well-funded accounts and positive delta
+    assert!(result.is_ok(), "non-vacuity: execute_trade must succeed");
 
-        // Funding should be settled (both at same funding index)
-        kani::assert(
-            engine.accounts[user as usize].funding_index == engine.funding_index_qpb_e6,
-            "User funding must be settled",
-        );
-        kani::assert(
-            engine.accounts[lp as usize].funding_index == engine.funding_index_qpb_e6,
-            "LP funding must be settled",
-        );
+    // NON-VACUITY: Both accounts should have positions now
+    kani::assert(
+        !engine.accounts[user as usize].position_size.is_zero(),
+        "User must have position after trade",
+    );
+    kani::assert(
+        !engine.accounts[lp as usize].position_size.is_zero(),
+        "LP must have position after trade",
+    );
 
-        // INV must be preserved
-        kani::assert(canonical_inv(&engine), "INV must hold after trade");
-    }
+    // Funding should be settled (both at same funding index)
+    kani::assert(
+        engine.accounts[user as usize].funding_index == engine.funding_index_qpb_e6,
+        "User funding must be settled",
+    );
+    kani::assert(
+        engine.accounts[lp as usize].funding_index == engine.funding_index_qpb_e6,
+        "LP funding must be settled",
+    );
+
+    // INV must be preserved
+    kani::assert(canonical_inv(&engine), "INV must hold after trade");
 }
 
 /// Keeper crank with funding rate preserves INV
@@ -5132,19 +5147,20 @@ fn proof_crank_with_funding_preserves_inv() {
 
     let result = engine.keeper_crank(user, 100, 1_000_000, funding_rate, false);
 
-    if result.is_ok() {
-        // INV must be preserved after crank (regardless of funding rate value)
-        kani::assert(
-            canonical_inv(&engine),
-            "INV must hold after crank with funding",
-        );
+    // Non-vacuity: crank must succeed
+    assert!(result.is_ok(), "non-vacuity: keeper_crank must succeed");
 
-        // NON-VACUITY: crank advanced
-        kani::assert(
-            engine.last_crank_slot == 100,
-            "Crank must advance last_crank_slot",
-        );
-    }
+    // INV must be preserved after crank (regardless of funding rate value)
+    kani::assert(
+        canonical_inv(&engine),
+        "INV must hold after crank with funding",
+    );
+
+    // NON-VACUITY: crank advanced
+    kani::assert(
+        engine.last_crank_slot == 100,
+        "Crank must advance last_crank_slot",
+    );
 }
 
 // ============================================================================
