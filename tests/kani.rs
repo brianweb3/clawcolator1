@@ -876,6 +876,7 @@ fn withdrawal_requires_sufficient_balance() {
 
     engine.accounts[user_idx as usize].capital = U128::new(principal);
     engine.vault = U128::new(principal);
+    sync_engine_aggregates(&mut engine);
 
     let result = engine.withdraw(user_idx, withdraw, 0, 1_000_000);
 
@@ -903,6 +904,7 @@ fn pnl_withdrawal_requires_warmup() {
     engine.accounts[user_idx as usize].capital = U128::new(0); // No principal
     engine.insurance_fund.balance = U128::new(100_000);
     engine.vault = U128::new(pnl as u128);
+    sync_engine_aggregates(&mut engine);
     engine.current_slot = 0; // At slot 0, nothing warmed up
 
     // withdrawable_pnl should be 0 at slot 0
@@ -2410,6 +2412,7 @@ fn withdraw_calls_settle_enforces_pnl_or_zero_capital_post() {
     engine.accounts[user_idx as usize].position_size = I128::new(0);
     engine.accounts[user_idx as usize].warmup_slope_per_step = U128::new(0);
     engine.vault = U128::new(capital);
+    sync_engine_aggregates(&mut engine);
 
     // Call withdraw - may succeed or fail
     let _result = engine.withdraw(user_idx, withdraw_amt, 0, 1_000_000);
@@ -2558,6 +2561,7 @@ fn withdraw_im_check_blocks_when_equity_after_withdraw_below_im() {
     engine.accounts[user_idx as usize].entry_price = 1_000_000;
     engine.accounts[user_idx as usize].warmup_slope_per_step = U128::new(0);
     engine.vault = U128::new(150);
+    sync_engine_aggregates(&mut engine);
 
     // withdraw(60): new_capital=90, equity=90
     // IM = 1000 * 1000 / 10000 = 100
@@ -2724,6 +2728,8 @@ fn proof_settle_maintenance_deducts_correctly() {
     engine.accounts[user as usize].capital = U128::new(20_000);
     engine.accounts[user as usize].fee_credits = I128::ZERO;
     engine.accounts[user as usize].last_fee_slot = 0;
+    engine.vault = U128::new(20_000);
+    sync_engine_aggregates(&mut engine);
 
     let cap_before = engine.accounts[user as usize].capital;
     let insurance_before = engine.insurance_fund.balance;
@@ -2763,6 +2769,7 @@ fn proof_keeper_crank_advances_slot_monotonically() {
 
     let user = engine.add_user(0).unwrap();
     engine.accounts[user as usize].capital = U128::new(10_000); // Give user capital for valid account
+    sync_engine_aggregates(&mut engine);
 
     // Use deterministic slot advancement for non-vacuous proof
     let now_slot: u64 = 200; // Deterministic: always advances
@@ -2819,6 +2826,7 @@ fn proof_keeper_crank_best_effort_settle() {
 
     // Set last_fee_slot = 0, so huge fees accrue
     engine.accounts[user as usize].last_fee_slot = 0;
+    sync_engine_aggregates(&mut engine);
 
     // Crank at a later slot - fees will exceed capital
     let result = engine.keeper_crank(user, 100_000, 1_000_000, 0, false);
@@ -2866,6 +2874,7 @@ fn proof_close_account_requires_flat_and_paid() {
     } else {
         engine.accounts[user as usize].pnl = I128::new(0);
     }
+    sync_engine_aggregates(&mut engine);
 
     let result = engine.close_account(user, 0, 1_000_000);
 
@@ -3173,9 +3182,11 @@ fn proof_keeper_crank_forgives_half_slots() {
     // Create user and set capital explicitly (add_user doesn't give capital)
     let user = engine.add_user(0).unwrap();
     engine.accounts[user as usize].capital = U128::new(1_000_000);
+    engine.vault = U128::new(1_000_000);
 
     // Set last_fee_slot to 0 so fees accrue
     engine.accounts[user as usize].last_fee_slot = 0;
+    sync_engine_aggregates(&mut engine);
 
     // Use bounded now_slot for fast verification
     let now_slot: u64 = kani::any();
@@ -3618,43 +3629,31 @@ fn proof_lq6_n1_boundary_after_liquidation() {
 // ============================================================================
 
 /// LIQ-PARTIAL-1: Safety After Liquidation
-/// If liquidation succeeds:
-///   - For full close: position = 0
-///   - For partial close: is_above_margin_bps(target) must hold
-/// This ensures that partial liquidation brings the account to safety.
+/// If liquidation succeeds with partial close, the remaining position must be
+/// above maintenance margin. The liquidation fee (charged after close) may push
+/// equity below target (maintenance + buffer), but it must stay above maintenance.
+///
+/// Setup chosen to produce a genuine partial fill:
+/// - deposit 200_000, position 10M (10 units at 1.0), pnl = 0
+/// - Notional = 10M, MM at 500 bps = 500_000 >> equity 200_000 → undercollateralized
+/// - Partial close leaves ~3.3M remaining (> min_liquidation_abs 100_000)
+/// - After capped fee (10_000), equity = 190_000 > MM of remaining ~166_666
 #[kani::proof]
 #[kani::unwind(33)]
 #[kani::solver(cadical)]
 fn proof_liq_partial_1_safety_after_liquidation() {
     let mut engine = RiskEngine::new(test_params());
 
-    // Create user with capital
     let user = engine.add_user(0).unwrap();
-    engine.deposit(user, 50_000, 0).unwrap();
+    engine.deposit(user, 200_000, 0).unwrap();
 
-    // Give user a large position that will need partial liquidation
-    // Position: 10 units at price 1.0
-    let position_size: i128 = 10_000_000; // 10 units (scaled by 1e6)
-    engine.accounts[user as usize].position_size = I128::new(position_size);
+    // Position: 10 units at price 1.0 (oracle = entry → mark_pnl = 0)
+    engine.accounts[user as usize].position_size = I128::new(10_000_000);
     engine.accounts[user as usize].entry_price = 1_000_000;
-
-    // Oracle price same as entry (no mark PnL)
-    let oracle_price: u64 = 1_000_000;
-
-    // Make user slightly undercollateralized via negative PnL
-    // Equity = capital + pnl = 50_000 + (-45_000) = 5_000
-    // Notional = 10 * 1.0 = 10_000_000
-    // Margin ratio = 5_000 / 10_000_000 * 10_000 = 5 bps (way below 500 bps maintenance)
-    engine.accounts[user as usize].pnl = I128::new(-45_000);
-
-    // Match vault for conservation
-    engine.vault = U128::new(50_000);
+    engine.accounts[user as usize].pnl = I128::new(0);
     sync_engine_aggregates(&mut engine);
 
-    let target_bps = engine
-        .params
-        .maintenance_margin_bps
-        .saturating_add(engine.params.liquidation_buffer_bps);
+    let oracle_price: u64 = 1_000_000;
 
     let result = engine.liquidate_at_oracle(user, 0, oracle_price);
 
@@ -3664,14 +3663,15 @@ fn proof_liq_partial_1_safety_after_liquidation() {
     let account = &engine.accounts[user as usize];
     let abs_pos = abs_i128_to_u128(account.position_size.get());
 
-    // Post-condition: position is either 0 or above target margin
-    // Uses engine.is_above_margin_bps to match production logic exactly
-    if abs_pos > 0 {
-        assert!(
-            engine.is_above_margin_bps(account, oracle_price, target_bps),
-            "Partial close: account must be above target margin"
-        );
-    }
+    // Non-vacuity: partial fill must occur (not full close)
+    assert!(abs_pos > 0, "setup must produce partial fill, not full close");
+
+    // After partial close + fee, account must be above maintenance margin.
+    // (Fee may push below target = maintenance + buffer, but maintenance must hold.)
+    assert!(
+        engine.is_above_maintenance_margin_mtm(account, oracle_price),
+        "Partial close: account must be above maintenance margin after fee"
+    );
 }
 
 /// LIQ-PARTIAL-2: Dust Elimination
@@ -3679,30 +3679,25 @@ fn proof_liq_partial_1_safety_after_liquidation() {
 ///   - 0 (fully closed), OR
 ///   - >= min_liquidation_abs (economically meaningful)
 /// This prevents dust positions that are uneconomical to maintain.
+///
+/// Setup produces a genuine partial fill (same as proof 1):
+/// remaining ~3.3M >> min_liquidation_abs 100_000.
 #[kani::proof]
 #[kani::unwind(33)]
 #[kani::solver(cadical)]
 fn proof_liq_partial_2_dust_elimination() {
     let mut engine = RiskEngine::new(test_params());
 
-    // Create user with capital
     let user = engine.add_user(0).unwrap();
-    engine.deposit(user, 10_000, 0).unwrap();
+    engine.deposit(user, 200_000, 0).unwrap();
 
-    // Give user a position
-    engine.accounts[user as usize].position_size = I128::new(1_000_000);
+    // Position: 10 units at price 1.0 (oracle = entry → mark_pnl = 0)
+    engine.accounts[user as usize].position_size = I128::new(10_000_000);
     engine.accounts[user as usize].entry_price = 1_000_000;
-
-    // Make user undercollateralized
-    engine.accounts[user as usize].pnl = I128::new(-9_000);
-
-    // Match vault for conservation
-    engine.vault = U128::new(10_000);
+    engine.accounts[user as usize].pnl = I128::new(0);
     sync_engine_aggregates(&mut engine);
 
     let min_liquidation_abs = engine.params.min_liquidation_abs;
-
-    // Use oracle = entry to ensure mark_pnl = 0 and force undercollateralization
     let oracle_price: u64 = 1_000_000;
 
     let result = engine.liquidate_at_oracle(user, 0, oracle_price);
@@ -3713,10 +3708,13 @@ fn proof_liq_partial_2_dust_elimination() {
     let account = &engine.accounts[user as usize];
     let abs_pos = abs_i128_to_u128(account.position_size.get());
 
-    // Dust elimination: position is either 0 or >= min_liquidation_abs
+    // Non-vacuity: partial fill must occur
+    assert!(abs_pos > 0, "setup must produce partial fill, not full close");
+
+    // Dust elimination: remaining position >= min_liquidation_abs
     assert!(
-        abs_pos == 0 || abs_pos >= min_liquidation_abs.get(),
-        "Position must be 0 or >= min_liquidation_abs (no dust)"
+        abs_pos >= min_liquidation_abs.get(),
+        "Partial close: remaining position must be >= min_liquidation_abs (no dust)"
     );
 }
 
@@ -3725,37 +3723,46 @@ fn proof_liq_partial_2_dust_elimination() {
 /// - Conservation holds after liquidation
 /// - N1 boundary holds (pnl >= 0 or capital == 0)
 /// - Dust rule satisfied
-/// - If position remains, account is above target margin
-/// Optimized: Use two users, set capitals directly
+/// - Partial fill leaves account above maintenance margin
+///
+/// Setup produces a genuine partial fill with two users:
+/// User: deposit 200_000, position 10M long, pnl 0
+/// Counterparty: deposit 200_000, position 10M short, pnl 0
 #[kani::proof]
 #[kani::unwind(5)] // MAX_ACCOUNTS=4
 #[kani::solver(cadical)]
 fn proof_liq_partial_3_routing_is_complete_via_conservation_and_n1() {
     let mut engine = RiskEngine::new(test_params());
 
-    // Use two users instead of user+LP
+    // Use two users instead of user+LP (avoids memcmp on pubkey arrays)
     let user = engine.add_user(0).unwrap();
     let counterparty = engine.add_user(0).unwrap();
 
-    // Set capitals directly
-    engine.accounts[user as usize].capital = U128::new(10_000);
-    engine.accounts[counterparty as usize].capital = U128::new(10_000);
-    engine.vault = U128::new(20_000);
+    // Set capitals and vault directly (higher values to support partial fill)
+    engine.accounts[user as usize].capital = U128::new(200_000);
+    engine.accounts[counterparty as usize].capital = U128::new(200_000);
+    engine.vault = U128::new(400_000);
 
-    // User long, counterparty short (zero-sum)
-    engine.accounts[user as usize].position_size = I128::new(1_000_000);
+    // User long, counterparty short (zero-sum positions)
+    engine.accounts[user as usize].position_size = I128::new(10_000_000);
     engine.accounts[user as usize].entry_price = 1_000_000;
-    engine.accounts[counterparty as usize].position_size = I128::new(-1_000_000);
+    engine.accounts[counterparty as usize].position_size = I128::new(-10_000_000);
     engine.accounts[counterparty as usize].entry_price = 1_000_000;
 
-    // Zero-sum PnL
-    engine.accounts[user as usize].pnl = I128::new(-9_000);
-    engine.accounts[counterparty as usize].pnl = I128::new(9_000);
+    // No PnL (entry == oracle, pnl = 0)
+    engine.accounts[user as usize].pnl = I128::new(0);
+    engine.accounts[counterparty as usize].pnl = I128::new(0);
     sync_engine_aggregates(&mut engine);
 
-    // Oracle = entry to ensure mark_pnl = 0 (simpler conservation)
-    // User: capital 10k, pnl -9k => equity 1k, notional 1M, MM 50k => undercollateralized
+    // Oracle = entry → mark_pnl = 0
+    // User: capital 200k, equity 200k, notional 10M, MM 500k => undercollateralized
     let oracle_price: u64 = 1_000_000;
+
+    // Verify conservation before
+    assert!(
+        engine.check_conservation(DEFAULT_ORACLE),
+        "Conservation must hold before liquidation"
+    );
 
     let result = engine.liquidate_at_oracle(user, 0, oracle_price);
 
@@ -3763,6 +3770,10 @@ fn proof_liq_partial_3_routing_is_complete_via_conservation_and_n1() {
     assert!(result.unwrap(), "setup must force liquidation to trigger");
 
     let account = &engine.accounts[user as usize];
+    let abs_pos = abs_i128_to_u128(account.position_size.get());
+
+    // Non-vacuity: partial fill must occur
+    assert!(abs_pos > 0, "setup must produce partial fill, not full close");
 
     // Conservation holds (no silent PnL drop)
     assert!(
@@ -3777,23 +3788,16 @@ fn proof_liq_partial_3_routing_is_complete_via_conservation_and_n1() {
     );
 
     // Dust rule
-    let abs_pos = abs_i128_to_u128(account.position_size.get());
     assert!(
-        abs_pos == 0 || abs_pos >= engine.params.min_liquidation_abs.get(),
-        "Dust rule: position must be 0 or >= min_liquidation_abs"
+        abs_pos >= engine.params.min_liquidation_abs.get(),
+        "Dust rule: remaining position must be >= min_liquidation_abs"
     );
 
-    // If position remains, must be above target margin
-    if abs_pos > 0 {
-        let target_bps = engine
-            .params
-            .maintenance_margin_bps
-            .saturating_add(engine.params.liquidation_buffer_bps);
-        assert!(
-            engine.is_above_margin_bps(account, oracle_price, target_bps),
-            "Partial liquidation must leave account above target margin"
-        );
-    }
+    // After partial close + fee, must be above maintenance margin
+    assert!(
+        engine.is_above_maintenance_margin_mtm(account, oracle_price),
+        "Partial close: account must be above maintenance margin after fee"
+    );
 }
 
 /// LIQ-PARTIAL-4: Conservation Preservation
@@ -4209,6 +4213,7 @@ fn withdrawal_maintains_margin_above_maintenance() {
     let entry_price: u64 = kani::any();
     kani::assume(entry_price >= 800_000 && entry_price <= 1_200_000);
     engine.accounts[idx as usize].entry_price = entry_price;
+    sync_engine_aggregates(&mut engine);
 
     let oracle_price: u64 = kani::any();
     kani::assume(oracle_price >= 800_000 && oracle_price <= 1_200_000);
@@ -5376,23 +5381,32 @@ fn proof_trade_pnl_zero_sum() {
     let user_capital_after = engine.accounts[user as usize].capital.get();
     let lp_capital_after = engine.accounts[lp as usize].capital.get();
 
-    // Total equity change should sum to zero (ignoring fees for this proof - fees=0 in test_params)
-    // Note: With trading_fee_bps=10 there are fees, but they go to insurance not LP
+    // Compute expected fee using same formula as engine:
+    // notional = |exec_size| * exec_price / 1_000_000
+    // fee = notional * trading_fee_bps / 10_000
+    // NoOpMatcher returns exec_price = oracle, exec_size = size
+    let abs_size = if size >= 0 { size as u128 } else { (-size) as u128 };
+    let notional = abs_size.saturating_mul(oracle as u128) / 1_000_000;
+    let expected_fee = notional.saturating_mul(10) / 10_000; // trading_fee_bps = 10
+
     let user_delta = (user_pnl_after - user_pnl_before)
         + (user_capital_after as i128 - user_capital_before as i128);
     let lp_delta =
         (lp_pnl_after - lp_pnl_before) + (lp_capital_after as i128 - lp_capital_before as i128);
 
-    // Trading fees go to insurance, not LP, so user+LP+insurance should be zero-sum
-    // For this proof we check that user_delta + lp_delta <= 0 (fees paid out)
-    // and that the deficit equals the fee
+    // With exec_price = oracle, trade_pnl = 0. Only user pays fee (from capital → insurance).
+    // user_delta = -fee, lp_delta = 0, total = -fee exactly.
     let total_delta = user_delta + lp_delta;
 
-    // With trading_fee_bps=10 and exec at oracle, trade_pnl=0, so:
-    // user_delta = -fee, lp_delta = 0, total = -fee
     kani::assert(
-        total_delta <= 0,
-        "ZERO_SUM: User + LP can only lose to fees",
+        total_delta == -(expected_fee as i128),
+        "ZERO_SUM: User + LP delta must equal exactly negative fee",
+    );
+
+    // LP is never charged fees
+    kani::assert(
+        lp_delta == 0,
+        "ZERO_SUM: LP delta must be zero (fees only from user)",
     );
 }
 
