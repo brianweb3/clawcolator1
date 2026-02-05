@@ -6688,10 +6688,13 @@ fn proof_force_close_with_set_pnl_preserves_invariant() {
     engine.accounts[user as usize].position_size = I128::ZERO;
     engine.accounts[user as usize].entry_price = 0;
 
-    // Update OI aggregate (position zeroed)
-    sync_engine_aggregates(&mut engine);
+    // Only update OI manually (position zeroed).
+    // IMPORTANT: Do NOT call sync_engine_aggregates/recompute_aggregates here!
+    // We want to verify that set_pnl ALONE maintains pnl_pos_tot.
+    engine.total_open_interest = U128::new(0);
 
     // Postcondition: invariant still holds
+    // If set_pnl didn't maintain pnl_pos_tot, this would FAIL
     kani::assert(
         inv_aggregates(&engine),
         "force-close using set_pnl must preserve aggregate invariant"
@@ -6737,7 +6740,10 @@ fn proof_multiple_force_close_preserves_invariant() {
     engine.set_pnl(user2 as usize, new_pnl2);
     engine.accounts[user2 as usize].position_size = I128::ZERO;
 
-    sync_engine_aggregates(&mut engine);
+    // Only update OI manually (both positions zeroed).
+    // IMPORTANT: Do NOT call sync_engine_aggregates/recompute_aggregates!
+    // We want to verify that set_pnl ALONE maintains pnl_pos_tot.
+    engine.total_open_interest = U128::new(0);
 
     kani::assert(
         inv_aggregates(&engine),
@@ -6835,5 +6841,43 @@ fn proof_recompute_aggregates_correct() {
     kani::assert(
         engine.pnl_pos_tot.get() == expected_pnl_pos,
         "recompute_aggregates must fix pnl_pos_tot"
+    );
+}
+
+/// NEGATIVE PROOF: Demonstrates that bypassing set_pnl() breaks invariants.
+/// This proof is EXPECTED TO FAIL - it shows our real proofs are non-vacuous.
+///
+/// If this proof were to PASS, it would mean our invariant checks are weak.
+/// Run with: cargo kani --harness proof_NEGATIVE_bypass_set_pnl_breaks_invariant
+/// Expected result: VERIFICATION FAILED
+#[kani::proof]
+#[kani::should_panic]
+#[kani::unwind(5)]
+#[kani::solver(cadical)]
+fn proof_NEGATIVE_bypass_set_pnl_breaks_invariant() {
+    let mut engine = RiskEngine::new(test_params());
+    let user = engine.add_user(0).unwrap();
+
+    // Setup initial state
+    let initial_pnl: i128 = kani::any();
+    kani::assume(initial_pnl > -50_000 && initial_pnl < 50_000);
+    engine.set_pnl(user as usize, initial_pnl);
+
+    // Invariant holds after proper set_pnl
+    kani::assume(inv_aggregates(&engine));
+
+    // BUGGY CODE: Directly modify pnl WITHOUT using set_pnl
+    // This simulates what Bug #10 originally did
+    let new_pnl: i128 = kani::any();
+    kani::assume(new_pnl > -50_000 && new_pnl < 50_000);
+    kani::assume(new_pnl != initial_pnl); // Ensure actual change
+
+    // BUG: Direct assignment bypasses aggregate maintenance!
+    engine.accounts[user as usize].pnl = I128::new(new_pnl);
+
+    // This SHOULD FAIL - pnl_pos_tot is now stale
+    kani::assert(
+        inv_aggregates(&engine),
+        "EXPECTED TO FAIL: bypassing set_pnl breaks pnl_pos_tot invariant"
     );
 }
