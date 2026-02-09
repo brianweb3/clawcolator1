@@ -273,6 +273,11 @@
             gap: 14px;
             animation: fadeInUp 1s ease-out 0.5s both;
         }
+        .hero-buttons-group {
+            display: flex;
+            flex-wrap: nowrap;
+            gap: 14px;
+        }
         .hero-btn-lp {
             display: inline-flex;
             align-items: center;
@@ -296,6 +301,11 @@
         }
         .hero-btn-market {
             animation: none;
+        }
+        .hero-x-logo {
+            height: 1.15em;
+            width: auto;
+            display: block;
         }
         
         /* Stats section */
@@ -2816,6 +2826,10 @@
                 <div class="hero-buttons">
                     <button class="hero-btn-lp" onclick="openLiquidityProviderWindow()">Become Liquidity Provider</button>
                     <a href="#market" class="hero-btn-lp hero-btn-market">Long memes with 10x</a>
+                    <div class="hero-buttons-group">
+                        <button type="button" class="hero-btn-lp hero-btn-copy-ca" id="heroCopyCaBtn" onclick="copyHeroCA()">Copy CA</button>
+                        <a href="https://x.com/i/communities/2020940551013453927" target="_blank" rel="noopener noreferrer" class="hero-btn-lp hero-btn-x" title="X"><img src="x-logo.svg" alt="X" class="hero-x-logo"></a>
+                    </div>
                 </div>
             </div>
         </section>
@@ -3552,6 +3566,12 @@
             }).catch(err => {
                 console.error('Failed to copy:', err);
             });
+        }
+        
+        // Copy hero CA (Clawcolator contract address)
+        function copyHeroCA() {
+            const btn = document.getElementById('heroCopyCaBtn');
+            if (btn) copyContractAddress('G3uiNarbtChL9hcxB5ZsvVbw7zsDzeXAWmXzqUjspump', btn);
         }
         
         // Close status window on overlay click
