@@ -14,10 +14,13 @@ path = "src/percolator.rs"
 [dev-dependencies]
 proptest = "1.4"
 
+# Web server dependencies for localhost demo
 [features]
 default = []
 test = []  # Use MAX_ACCOUNTS=64 for tests
 fuzz = []  # Enable fuzzing tests
+clawcolator = []  # Enable Clawcolator agent-first fork
+localhost = ["clawcolator"]  # Enable localhost server (requires clawcolator)
 
 [profile.release]
 lto = "fat"

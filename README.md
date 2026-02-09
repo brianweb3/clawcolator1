@@ -1,122 +1,50 @@
-# Percolator: Risk Engine for Perpetual DEXs
+# Clawcolator
 
-⚠️ **EDUCATIONAL RESEARCH PROJECT — NOT PRODUCTION READY** ⚠️  
-Do **NOT** use with real funds. Not audited. Experimental design.
+<p align="center">
+  <img src="favicon.png" alt="Clawcolator" width="120" />
+</p>
 
-Percolator is a **formally verified accounting + risk engine** for perpetual futures DEXs on Solana.
-
-**Primary goal:**
-
-> **No user can ever withdraw more value than actually exists on the exchange balance sheet.**
-
-Percolator **does not move tokens**. A wrapper program performs SPL transfers and calls into the engine.
+**Agent-first fork of [Percolator](https://github.com/aeyakovenko/percolator).**  
+All market decisions are delegated to an autonomous OpenClaw agent, while the protocol strictly enforces financial invariants and system safety.
 
 ---
 
-## What kind of perp design is this?
+## What is Clawcolator?
 
-Percolator is a **hybrid**:
-- **Synthetics-style risk**: users take positions against **LP accounts** (inventory holders), and the engine enforces margin, liquidations, ADL/socialization, and withdrawal safety against a shared balance sheet.
-- **Orderbook-style execution extensibility**: LPs provide a **pluggable matcher program/context** (`MatchingEngine`) that can implement AMM/RFQ/CLOB logic and can **reject** trades.
+Clawcolator is a **fork of Percolator** — a formally verified risk engine for perpetual DEXs on Solana — extended with an **agent-first** design:
 
-### Design clarifications
+- **OpenClaw agent** decides whether to accept, reject, or modify trade proposals.
+- **Core engine** (from Percolator) enforces margin, liquidations, and balance-sheet safety.
+- **Users propose** trades; the agent takes the other side. The protocol guarantees no net extraction beyond the balance sheet.
 
-- **Users choose which LP to trade with.**  
-  The wrapper routes the trade to a specific LP account. The LP is not forced to take every trade: its **matcher** may reject, and the engine rejects if post-trade solvency fails.
-
-- **Liquidity fragmentation is possible at the execution layer.**  
-  If users must target a specific LP account, then the maximum fill against that LP is bounded by that LP’s inventory/margin. Aggregation/routing across LPs is a **wrapper-level** feature.
-
-- **Positions opened with LP1 can be closed against LP2 — by design.**  
-  The engine uses **variation margin** semantics: `entry_price` is **the last oracle mark at which the position was settled** (not per-counterparty trade entry).  
-  Before mutating positions, the engine settles mark-to-oracle (`settle_mark_to_oracle`), making positions **fungible** across LPs for closing.
-
-- **Liquidations are oracle-price closes of the liquidated account only — by design.**  
-  Liquidation does **not** require finding the original counterparty LP. It closes the liquidated account at the oracle price and routes PnL via the engine’s waterfall.
+So: you propose a trade → the agent analyzes and decides → the core validates → position state updates. The agent is not “god” — the core has the final say on system invariants.
 
 ---
 
-## Balance-Sheet-Backed Net Extraction (Security Claim)
+## Relation to Percolator
 
-No sequence of trades, oracle updates, funding accruals, warmups, ADL/socialization, panic settles, force-realize scans, or withdrawals can allow net extraction beyond what is funded by others’ realized losses and spendable insurance.
+- **Percolator**: risk engine + accounting; pluggable matcher; no built-in “who decides.”
+- **Clawcolator**: same engine, plus an **autonomous agent** (OpenClaw) as the primary decision-maker for market operations. The fork adds agent logic, UX, and tooling around the same verified core.
 
----
-
-## Wrapper usage (token movement)
-
-### Deposits
-1. Transfer tokens into the vault SPL account.
-2. Call `RiskEngine::deposit(idx, amount, now_slot)`.
-
-### Withdrawals
-1. Call `RiskEngine::withdraw(idx, amount, now_slot, oracle_price)`.
-2. If Ok, transfer tokens out of the vault SPL account.
-
-Withdraw only returns **capital**. Positive PnL becomes capital only via warmup/budget rules.
-
-Withdrawal safety checks enforced by the engine:
-- **Fresh crank required** (time-based staleness gate)
-- **Recent sweep started** for risk-increasing operations
-- **No pending socialization** (blocks value extraction while `pending_profit_to_fund` or `pending_unpaid_loss` are non-zero)
-- **Post-withdrawal margin checks** if a position remains open
+We keep the same security claim: **no user can withdraw more value than exists on the exchange balance sheet.**
 
 ---
 
-## Trading
+## Repo contents
 
-Wrapper validates signatures and oracle input, then calls:
-
-`RiskEngine::execute_trade(matcher, lp_idx, user_idx, now_slot, oracle_price, size)`
-
-Execution semantics (implementation-aligned):
-- Funding is settled lazily on touched accounts.
-- Positions are made fungible by settling mark-to-oracle before mutation:
-  - `settle_mark_to_oracle()` realizes mark PnL into `account.pnl` and sets `entry_price = oracle_price`.
-- Trade PnL is only execution-vs-oracle:
-  - `trade_pnl = (oracle_price - exec_price) * exec_size / 1e6` (zero-sum between user and LP)
-- Warmup slope is updated after PnL changes; profits warm over time and may become capital **even while a position remains open**, but withdrawals are still constrained by margin + system budget + socialization gates.
+- **Rust**: `src/percolator.rs` (engine), `src/clawcolator.rs` (agent integration), `src/localhost.rs` (local testing).
+- **Web**: `index.html`, `token.html`, `docs.html` — landing, token detail, and docs.
+- **Formal verification**: Kani harnesses (see Percolator docs); run with `cargo kani`.
 
 ---
 
-## Keeper crank, liveness, and cleanup
+## Status
 
-`RiskEngine::keeper_crank(...)` is permissionless.
-
-The crank is **cursor-based**, not a fixed 16-step schedule:
-- It scans up to `ACCOUNTS_PER_CRANK` occupied slots per call.
-- It detects “sweep complete” when the scanning cursor wraps back to the sweep start.
-- Liquidations and force-realize work are bounded by per-call budgets.
-
-Budget constants (from code):
-- `LIQ_BUDGET_PER_CRANK = 120`
-- `FORCE_REALIZE_BUDGET_PER_CRANK = 32`
-- `GC_CLOSE_BUDGET = 32`
-
-### Liquidation semantics
-- Liquidations close the **liquidated account** at the **oracle price** (no LP/AMM required).
-- Profit/loss routing:
-  - If `mark_pnl > 0`: profit must be funded; the engine funds it via ADL/socialization (excluding the winner from funding itself).
-  - If `mark_pnl <= 0`: losses are realized from the account’s own capital immediately; any unpaid remainder becomes socialized loss.
-- Liquidation fee is charged from remaining capital to insurance (if configured).
-
-### Abandoned accounts / dust GC
-User accounts with:
-- `position_size == 0`
-- `capital == 0`
-- `reserved_pnl == 0`
-- `pnl <= 0`
-
-are eligible to be freed by crank GC. LP accounts are never GC’d.
-
-(If maintenance fees are enabled, the intended behavior is that crank processing advances fee settlement so abandoned accounts eventually reach dust and are freed.)
+⚠️ **Educational / research.** Not production-ready. Do not use with real funds.
 
 ---
 
-## Formal verification
+## Links
 
-Kani harnesses verify key invariants including conservation, isolation, and no-teleport behavior for cross-LP closes.
-
-```bash
-cargo install --locked kani-verifier
-cargo kani setup
-cargo kani
+- **Site**: [Clawcolator](https://clawcolator.github.io) (or your deployment)
+- **Upstream**: [Percolator](https://github.com/aeyakovenko/percolator)

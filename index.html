@@ -1,0 +1,4274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clawcolator - Agent-First Fork</title>
+    <link rel="icon" type="image/png" href="favicon.png">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap');
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        :root {
+            --bg-gray: #f5f5f5;
+            --line-black: #000000;
+            --text-gray: #333333;
+            --accent-orange: #654194;
+        }
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--bg-gray);
+            color: var(--line-black);
+            overflow-x: hidden;
+            position: relative;
+            min-height: 100vh;
+        }
+        
+        /* Animated background lines */
+        .bg-lines {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+            pointer-events: none;
+            opacity: 0.1;
+        }
+        
+        .bg-line {
+            position: absolute;
+            background: var(--line-black);
+            animation: drawLine 3s ease-in-out infinite;
+        }
+        
+        @keyframes drawLine {
+            0% {
+                width: 0;
+                opacity: 0;
+            }
+            50% {
+                opacity: 1;
+            }
+            100% {
+                width: 100%;
+                opacity: 0.3;
+            }
+        }
+        
+        /* Navigation */
+        nav {
+            position: fixed;
+            top: 20px;
+            right: 30px;
+            z-index: 100;
+            display: flex;
+            gap: 25px;
+        }
+        
+        nav a {
+            color: var(--line-black);
+            text-decoration: none;
+            font-size: 0.85em;
+            font-weight: 400;
+            letter-spacing: 0.5px;
+            position: relative;
+            transition: opacity 0.3s;
+        }
+        
+        nav a.docs-link {
+            color: var(--accent-orange);
+        }
+        
+        nav a::after {
+            content: '';
+            position: absolute;
+            bottom: -3px;
+            left: 0;
+            width: 0;
+            height: 1px;
+            background: var(--line-black);
+            animation: underlineGrow 2s ease-in-out infinite;
+        }
+        
+        @keyframes underlineGrow {
+            0%, 100% { width: 0; }
+            50% { width: 100%; }
+        }
+        
+        nav a:hover {
+            opacity: 0.6;
+        }
+        
+        /* Main container */
+        .container {
+            position: relative;
+            z-index: 1;
+            padding: 80px 40px;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        
+        /* Hero section */
+        .hero {
+            position: relative;
+            min-height: 70vh;
+            display: flex;
+            align-items: center;
+            margin-bottom: 100px;
+        }
+        
+        /* Animated wireframe figure */
+        .wireframe-figure {
+            position: absolute;
+            left: 5%;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 500px;
+            height: 400px;
+            z-index: 2;
+        }
+        
+        .wireframe-line {
+            stroke: var(--line-black);
+            stroke-width: 2;
+            fill: none;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+            animation: drawPath 4s ease-in-out infinite;
+            opacity: 0;
+        }
+        
+        @keyframes drawPath {
+            0% {
+                stroke-dasharray: 1000;
+                stroke-dashoffset: 1000;
+                opacity: 0;
+            }
+            20% {
+                opacity: 1;
+            }
+            80% {
+                stroke-dashoffset: 0;
+                opacity: 1;
+            }
+            100% {
+                opacity: 0.3;
+            }
+        }
+        
+        .wireframe-line.thick {
+            stroke-width: 3;
+        }
+        
+        .wireframe-line.thin {
+            stroke-width: 1;
+        }
+        
+        /* Pulsing dots */
+        .pulse-dot {
+            position: absolute;
+            width: 6px;
+            height: 6px;
+            background: var(--line-black);
+            border-radius: 50%;
+            animation: pulse 2s ease-in-out infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% {
+                transform: scale(1);
+                opacity: 1;
+            }
+            50% {
+                transform: scale(2);
+                opacity: 0.3;
+            }
+        }
+        
+        /* Content area */
+        .content {
+            position: relative;
+            z-index: 3;
+            margin-left: 50%;
+            max-width: 600px;
+        }
+        
+        h1 {
+            font-size: 4.5em;
+            font-weight: 300;
+            letter-spacing: -2px;
+            line-height: 1.1;
+            margin-bottom: 30px;
+            color: var(--line-black);
+            animation: fadeInUp 1s ease-out;
+        }
+        
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        @keyframes fadeOutDown {
+            from {
+                opacity: 1;
+                transform: translateY(0);
+            }
+            to {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+        }
+        
+        .scroll-animate {
+            opacity: 0;
+            transform: translateY(30px);
+            transition: opacity 0.6s ease-out, transform 0.6s ease-out;
+        }
+        
+        .scroll-animate.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        
+        .scroll-animate.hidden {
+            opacity: 0;
+            transform: translateY(30px);
+            transition: opacity 0.4s ease-out, transform 0.4s ease-out;
+        }
+        
+        .subtitle {
+            font-size: 1.1em;
+            font-weight: 400;
+            line-height: 1.6;
+            color: var(--text-gray);
+            margin-bottom: 40px;
+            animation: fadeInUp 1s ease-out 0.2s both;
+        }
+        
+        .description {
+            font-size: 0.95em;
+            line-height: 1.8;
+            color: var(--text-gray);
+            max-width: 500px;
+            margin-bottom: 28px;
+            animation: fadeInUp 1s ease-out 0.4s both;
+        }
+        
+        .hero-buttons {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 14px;
+            animation: fadeInUp 1s ease-out 0.5s both;
+        }
+        .hero-btn-lp {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 12px 24px;
+            border: 2px solid var(--line-black);
+            background: var(--line-black);
+            color: #fff;
+            font-family: inherit;
+            font-size: 0.9em;
+            font-weight: 500;
+            letter-spacing: 0.5px;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-decoration: none;
+        }
+        .hero-btn-lp:hover {
+            background: var(--line-black);
+            color: #fff;
+            opacity: 0.9;
+        }
+        .hero-btn-market {
+            animation: none;
+        }
+        
+        /* Stats section */
+        .stats-section {
+            margin: 120px 0;
+            position: relative;
+        }
+        
+        .stats-title {
+            font-size: 2em;
+            font-weight: 300;
+            margin-bottom: 60px;
+            text-align: center;
+            letter-spacing: -1px;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 40px;
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+        
+        .stat-card {
+            text-align: center;
+            position: relative;
+            padding: 30px;
+        }
+        
+        .stat-number {
+            font-size: 5em;
+            font-weight: 300;
+            line-height: 1;
+            margin-bottom: 10px;
+            color: var(--line-black);
+            animation: countUp 2s ease-out;
+        }
+        
+        @keyframes countUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .stat-label {
+            font-size: 0.85em;
+            color: var(--text-gray);
+            font-weight: 400;
+            margin-bottom: 5px;
+        }
+        
+        .stat-year {
+            font-size: 0.75em;
+            color: var(--text-gray);
+            opacity: 0.7;
+        }
+        
+        /* Animated line connecting stats */
+        .stat-line {
+            position: absolute;
+            height: 2px;
+            background: var(--line-black);
+            top: 20%;
+            left: 0;
+            right: 0;
+            z-index: -1;
+            animation: drawHorizontal 3s ease-in-out infinite;
+        }
+        
+        @keyframes drawHorizontal {
+            0% {
+                width: 0;
+                opacity: 0;
+            }
+            50% {
+                opacity: 1;
+            }
+            100% {
+                width: 100%;
+                opacity: 0.3;
+            }
+        }
+        
+        /* Problems section */
+        .problems-section {
+            margin: 120px 0;
+            padding: 0 40px;
+        }
+        
+        .problems-title {
+            font-size: 2em;
+            font-weight: 300;
+            text-align: center;
+            margin-bottom: 80px;
+            letter-spacing: -1px;
+        }
+        
+        .problems-list {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+        
+        .problem-item {
+            margin: 60px 0;
+            position: relative;
+            padding-left: 80px;
+        }
+        
+        .problem-number {
+            position: absolute;
+            left: 0;
+            top: 0;
+            font-size: 3em;
+            font-weight: 300;
+            color: var(--accent-orange);
+            line-height: 1;
+        }
+        
+        .problem-content h3 {
+            font-size: 1.3em;
+            font-weight: 400;
+            margin-bottom: 15px;
+            color: var(--line-black);
+            letter-spacing: -0.5px;
+        }
+        
+        .problem-content p {
+            font-size: 0.9em;
+            line-height: 1.7;
+            color: var(--text-gray);
+        }
+        
+        /* Animated line next to problem */
+        .problem-line {
+            display: none;
+        }
+        
+        @keyframes drawVertical {
+            0% {
+                height: 0;
+                opacity: 0;
+            }
+            50% {
+                opacity: 1;
+            }
+            100% {
+                height: 100%;
+                opacity: 0.2;
+            }
+        }
+        
+        /* Comparison section */
+        .comparison-section {
+            margin: 120px 0;
+            padding: 0 40px;
+        }
+        
+        .comparison-title {
+            font-size: 2em;
+            font-weight: 300;
+            text-align: center;
+            margin-bottom: 30px;
+            letter-spacing: -1px;
+        }
+        
+        .comparison-subtitle {
+            font-size: 1em;
+            text-align: center;
+            color: var(--text-gray);
+            max-width: 700px;
+            margin: 0 auto 60px;
+            line-height: 1.7;
+        }
+        
+        .comparison-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 60px;
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+        
+        .comparison-card {
+            position: relative;
+            padding: 40px;
+        }
+        
+        .comparison-percent {
+            font-size: 6em;
+            font-weight: 300;
+            line-height: 1;
+            margin-bottom: 20px;
+            color: var(--accent-orange);
+        }
+        
+        .comparison-label {
+            font-size: 1.4em;
+            font-weight: 400;
+            margin-bottom: 20px;
+            color: var(--line-black);
+            letter-spacing: -0.5px;
+        }
+        
+        .comparison-description {
+            font-size: 0.9em;
+            line-height: 1.7;
+            color: var(--text-gray);
+        }
+        
+        /* Animated border around comparison cards */
+        .comparison-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            border: 2px solid var(--line-black);
+            animation: borderPulse 3s ease-in-out infinite;
+            pointer-events: none;
+        }
+        
+        @keyframes borderPulse {
+            0%, 100% {
+                opacity: 0.3;
+                transform: scale(1);
+            }
+            50% {
+                opacity: 1;
+                transform: scale(1.02);
+            }
+        }
+        
+        /* Architecture section */
+        .architecture-section {
+            margin: 120px 0;
+            padding: 0 40px;
+        }
+        
+        .architecture-title {
+            font-size: 2em;
+            font-weight: 300;
+            text-align: center;
+            margin-bottom: 80px;
+            letter-spacing: -1px;
+        }
+        
+        .arch-diagram {
+            max-width: 1200px;
+            margin: 0 auto;
+            position: relative;
+            padding: 40px 0;
+        }
+        
+        .arch-box {
+            margin: 60px 0;
+            padding: 40px;
+            position: relative;
+            border: 2px solid var(--line-black);
+            background: var(--white);
+            min-height: 200px;
+        }
+        
+        .arch-box h3 {
+            font-size: 1.5em;
+            font-weight: 400;
+            margin-bottom: 20px;
+            color: var(--line-black);
+            letter-spacing: -0.5px;
+        }
+        
+        .arch-box p {
+            font-size: 0.9em;
+            line-height: 1.8;
+            color: var(--text-gray);
+            margin: 8px 0;
+        }
+        
+        /* Animated arrows between boxes */
+        .arch-arrow {
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 10;
+        }
+        
+        .arch-arrow-down {
+            width: 2px;
+            height: 60px;
+            background: var(--line-black);
+            animation: drawArrowDown 2s ease-in-out infinite;
+        }
+        
+        .arch-arrow-down::after {
+            content: '';
+            position: absolute;
+            bottom: -8px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 0;
+            height: 0;
+            border-left: 8px solid transparent;
+            border-right: 8px solid transparent;
+            border-top: 12px solid var(--line-black);
+            animation: arrowHeadAppear 2s ease-in-out infinite;
+        }
+        
+        @keyframes drawArrowDown {
+            0% {
+                height: 0;
+                opacity: 0;
+            }
+            30% {
+                opacity: 1;
+            }
+            70% {
+                height: 60px;
+                opacity: 1;
+            }
+            100% {
+                opacity: 0.5;
+            }
+        }
+        
+        @keyframes arrowHeadAppear {
+            0%, 60% {
+                opacity: 0;
+            }
+            70%, 100% {
+                opacity: 1;
+            }
+        }
+        
+        /* Flow indicators on arrows */
+        .arrow-flow {
+            position: absolute;
+            width: 6px;
+            height: 6px;
+            background: var(--accent-orange);
+            border-radius: 50%;
+            left: 50%;
+            transform: translateX(-50%);
+            animation: flowDown 2s ease-in-out infinite;
+        }
+        
+        @keyframes flowDown {
+            0% {
+                top: 0;
+                opacity: 1;
+            }
+            100% {
+                top: 100%;
+                opacity: 0;
+            }
+        }
+        
+        /* Horizontal arrows for side connections */
+        .arch-arrow-horizontal {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 100px;
+            height: 2px;
+            background: var(--line-black);
+            animation: drawArrowHorizontal 2s ease-in-out infinite;
+        }
+        
+        .arch-arrow-horizontal.right {
+            right: -100px;
+        }
+        
+        .arch-arrow-horizontal.left {
+            left: -100px;
+        }
+        
+        .arch-arrow-horizontal.right::after {
+            content: '';
+            position: absolute;
+            right: 0;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 0;
+            height: 0;
+            border-top: 6px solid transparent;
+            border-bottom: 6px solid transparent;
+            border-left: 10px solid var(--line-black);
+            animation: arrowHeadAppear 2s ease-in-out infinite;
+        }
+        
+        .arch-arrow-horizontal.left::after {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 0;
+            height: 0;
+            border-top: 6px solid transparent;
+            border-bottom: 6px solid transparent;
+            border-right: 10px solid var(--line-black);
+            animation: arrowHeadAppear 2s ease-in-out infinite;
+        }
+        
+        @keyframes drawArrowHorizontal {
+            0% {
+                width: 0;
+                opacity: 0;
+            }
+            30% {
+                opacity: 1;
+            }
+            70% {
+                width: 100px;
+                opacity: 1;
+            }
+            100% {
+                opacity: 0.5;
+            }
+        }
+        
+        /* Bidirectional arrows */
+        .arch-arrow-bidirectional {
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 2px;
+            height: 60px;
+            background: var(--line-black);
+            animation: drawArrowDown 2s ease-in-out infinite;
+            margin-top: 10px;
+            margin-bottom: 10px;
+        }
+        
+        .arch-arrow-bidirectional::before {
+            content: '';
+            position: absolute;
+            top: -8px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 0;
+            height: 0;
+            border-left: 6px solid transparent;
+            border-right: 6px solid transparent;
+            border-bottom: 10px solid var(--line-black);
+            animation: arrowHeadAppear 2s ease-in-out infinite;
+        }
+        
+        .arch-arrow-bidirectional::after {
+            content: '';
+            position: absolute;
+            bottom: -8px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 0;
+            height: 0;
+            border-left: 8px solid transparent;
+            border-right: 8px solid transparent;
+            border-top: 12px solid var(--line-black);
+            animation: arrowHeadAppear 2s ease-in-out infinite;
+        }
+        
+        /* Flow dots moving along arrows */
+        .flow-dot {
+            position: absolute;
+            width: 4px;
+            height: 4px;
+            background: var(--accent-orange);
+            border-radius: 50%;
+            animation: moveAlongArrow 3s linear infinite;
+        }
+        
+        @keyframes moveAlongArrow {
+            0% {
+                opacity: 0;
+            }
+            10% {
+                opacity: 1;
+            }
+            90% {
+                opacity: 1;
+            }
+            100% {
+                opacity: 0;
+            }
+        }
+        
+        /* SVG arrows for more complex paths */
+        .arch-svg-arrow {
+            position: absolute;
+            z-index: 5;
+            pointer-events: none;
+        }
+        
+        .arch-svg-arrow path {
+            stroke: var(--line-black);
+            stroke-width: 2;
+            fill: none;
+            stroke-linecap: round;
+            stroke-dasharray: 1000;
+            stroke-dashoffset: 1000;
+            animation: drawSVGArrow 3s ease-in-out infinite;
+        }
+        
+        .arch-svg-arrow polygon {
+            fill: var(--line-black);
+            animation: arrowHeadAppear 3s ease-in-out infinite;
+        }
+        
+        @keyframes drawSVGArrow {
+            0% {
+                stroke-dashoffset: 1000;
+                opacity: 0;
+            }
+            20% {
+                opacity: 1;
+            }
+            80% {
+                stroke-dashoffset: 0;
+                opacity: 1;
+            }
+            100% {
+                opacity: 0.4;
+            }
+        }
+        
+        /* Market Panel Section */
+        .market-section {
+            margin: 120px 0;
+            padding: 0 40px;
+        }
+        
+        .market-title {
+            font-size: 2em;
+            font-weight: 300;
+            text-align: center;
+            margin-bottom: 60px;
+            letter-spacing: -1px;
+        }
+        
+        /* Market Overview Table */
+        .market-table {
+            width: 100%;
+            max-width: 1200px;
+            margin: 0 auto;
+            border-collapse: separate;
+            border-spacing: 0;
+            border: 2px solid var(--line-black);
+            background: var(--white);
+            font-weight: 600;
+        }
+        
+        .market-table th {
+            padding: 15px 20px;
+            text-align: left;
+            font-size: 0.85em;
+            font-weight: 600;
+            border-bottom: 2px solid var(--line-black);
+            background: var(--bg-gray);
+            color: var(--line-black);
+            letter-spacing: 0.5px;
+        }
+        
+        .market-table td {
+            padding: 12px 20px;
+            font-size: 0.85em;
+            border-bottom: 1px solid rgba(0,0,0,0.1);
+            border-left: none;
+            border-right: none;
+            color: var(--text-gray);
+            font-weight: 600;
+        }
+        
+        .market-table th {
+            border-left: none;
+            border-right: none;
+        }
+        
+        .market-table tr {
+            cursor: pointer;
+            transition: background 0.2s;
+            animation: fadeInRow 0.5s ease-out;
+        }
+        
+        @keyframes fadeInRow {
+            from {
+                opacity: 0;
+                transform: translateX(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+        
+        .market-table tr:hover {
+            background: rgba(0,0,0,0.03);
+        }
+        
+        .market-table tr:last-child td {
+            border-bottom: none;
+        }
+        
+        .token-name {
+            font-weight: 600;
+            color: var(--line-black);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .token-logo {
+            width: 32px;
+            height: 32px;
+            border-radius: 4px;
+            border: 1px solid var(--line-black);
+            object-fit: contain;
+            background: #ffffff;
+            flex-shrink: 0;
+        }
+        
+        .price {
+            font-weight: 600;
+        }
+        
+        .change-positive {
+            color: #00aa00;
+        }
+        
+        .change-negative {
+            color: #aa0000;
+        }
+        
+        .change-24h {
+            font-weight: 600;
+        }
+        
+        .mcap {
+            font-weight: 600;
+            color: var(--text-gray);
+        }
+        
+        .bias-long {
+            color: #00aa00;
+            font-weight: 600;
+        }
+        
+        .bias-short {
+            color: #aa0000;
+            font-weight: 600;
+        }
+        
+        .bias-neutral {
+            color: var(--text-gray);
+        }
+        
+        .status-active {
+            color: #00aa00;
+            font-weight: 500;
+        }
+        
+        .status-restricted {
+            color: var(--accent-orange);
+            font-weight: 500;
+        }
+        
+        .status-halted {
+            color: #8b2a2a;
+            font-weight: 600;
+        }
+        
+        .side-long.enabled,
+        .side-short.enabled {
+            color: #1a5c1a;
+            font-size: 0.8em;
+            font-weight: 500;
+        }
+        
+        .side-long:not(.enabled),
+        .side-short:not(.enabled) {
+            color: var(--text-gray);
+            font-size: 0.85em;
+        }
+        
+        .status-halted {
+            color: #aa0000;
+            font-weight: 500;
+        }
+        
+        /* Token Window (Modal) */
+        .token-window {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 90%;
+            max-width: 1000px;
+            max-height: 90vh;
+            background: var(--white);
+            border: 3px solid var(--line-black);
+            box-shadow: 10px 10px 0 rgba(0,0,0,0.2);
+            z-index: 1000;
+            overflow-y: auto;
+            animation: windowAppear 0.3s ease-out;
+        }
+        
+        @keyframes windowAppear {
+            from {
+                opacity: 0;
+                transform: translate(-50%, -50%) scale(0.9);
+            }
+            to {
+                opacity: 1;
+                transform: translate(-50%, -50%) scale(1);
+            }
+        }
+        
+        .token-window.active {
+            display: block;
+        }
+        
+        .window-header {
+            padding: 15px 20px;
+            border-bottom: 2px solid var(--line-black);
+            background: var(--bg-gray);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .window-title {
+            font-size: 1.2em;
+            font-weight: 500;
+            color: var(--line-black);
+        }
+        
+        .window-close {
+            width: 30px;
+            height: 30px;
+            border: 2px solid var(--line-black);
+            background: transparent;
+            cursor: pointer;
+            position: relative;
+            transition: background 0.2s;
+        }
+        
+        .window-close:hover {
+            background: var(--line-black);
+        }
+        
+        .window-close::before,
+        .window-close::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 2px;
+            height: 15px;
+            background: var(--line-black);
+            transform: translate(-50%, -50%) rotate(45deg);
+        }
+        
+        .window-close::after {
+            transform: translate(-50%, -50%) rotate(-45deg);
+        }
+        
+        .window-close:hover::before,
+        .window-close:hover::after {
+            background: var(--white);
+        }
+        
+        .window-content {
+            padding: 30px;
+        }
+        
+        /* Price Chart */
+        .price-chart {
+            margin: 30px 0;
+            padding: 20px;
+            border: 2px solid var(--line-black);
+            background: var(--white);
+            height: 300px;
+            position: relative;
+        }
+        
+        .chart-svg {
+            width: 100%;
+            height: 100%;
+        }
+        
+        .chart-line {
+            stroke: var(--line-black);
+            stroke-width: 2;
+            fill: none;
+            stroke-linecap: round;
+            stroke-dasharray: 1000;
+            stroke-dashoffset: 1000;
+            animation: drawChartLine 3s ease-out forwards;
+        }
+        
+        @keyframes drawChartLine {
+            to {
+                stroke-dashoffset: 0;
+            }
+        }
+        
+        .chart-marker {
+            position: absolute;
+            width: 8px;
+            height: 8px;
+            border: 2px solid var(--line-black);
+            border-radius: 50%;
+            background: var(--white);
+            transform: translate(-50%, -50%);
+            animation: markerPulse 2s ease-in-out infinite;
+        }
+        
+        @keyframes markerPulse {
+            0%, 100% {
+                transform: translate(-50%, -50%) scale(1);
+            }
+            50% {
+                transform: translate(-50%, -50%) scale(1.3);
+            }
+        }
+        
+        .marker-accepted {
+            background: #00aa00;
+        }
+        
+        .marker-rejected {
+            background: #aa0000;
+        }
+        
+        .marker-agent {
+            background: var(--accent-orange);
+        }
+        
+        /* Action Panel */
+        .action-panel {
+            margin: 30px 0;
+            padding: 25px;
+            border: 2px solid var(--line-black);
+            background: var(--white);
+        }
+        
+        .action-buttons {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 25px;
+        }
+        
+        .action-btn {
+            flex: 1;
+            padding: 15px;
+            border: 2px solid var(--line-black);
+            background: transparent;
+            color: var(--line-black);
+            font-size: 1em;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .action-btn:hover {
+            background: var(--line-black);
+            color: var(--white);
+        }
+        
+        .action-btn.active {
+            background: var(--line-black);
+            color: var(--white);
+        }
+        
+        .action-form {
+            margin-top: 20px;
+        }
+        
+        .form-group {
+            margin: 20px 0;
+        }
+        
+        .form-label {
+            display: block;
+            font-size: 0.85em;
+            font-weight: 500;
+            margin-bottom: 8px;
+            color: var(--line-black);
+        }
+        
+        .form-input {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid var(--line-black);
+            background: var(--white);
+            font-size: 0.9em;
+            font-family: inherit;
+        }
+        
+        .form-input:focus {
+            outline: none;
+            border-color: var(--accent-orange);
+        }
+        
+        .slider-container {
+            margin: 15px 0;
+        }
+        
+        .slider {
+            width: 100%;
+            height: 4px;
+            background: var(--bg-gray);
+            border: 1px solid var(--line-black);
+            outline: none;
+            -webkit-appearance: none;
+        }
+        
+        .slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 16px;
+            height: 16px;
+            background: var(--line-black);
+            border: 2px solid var(--line-black);
+            cursor: pointer;
+        }
+        
+        .slider-value {
+            text-align: right;
+            font-size: 0.85em;
+            color: var(--text-gray);
+            margin-top: 5px;
+        }
+        
+        .risk-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        
+        .risk-btn {
+            flex: 1;
+            padding: 10px;
+            border: 2px solid var(--line-black);
+            background: transparent;
+            color: var(--line-black);
+            font-size: 0.85em;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .risk-btn:hover {
+            background: var(--line-black);
+            color: #fff;
+        }
+        .risk-btn.active {
+            background: var(--line-black);
+            color: var(--white);
+        }
+        
+        .propose-btn {
+            width: 100%;
+            padding: 15px;
+            margin-top: 25px;
+            border: 2px solid var(--line-black);
+            background: var(--line-black);
+            color: #fff;
+            font-size: 1em;
+            font-weight: 600;
+            cursor: pointer;
+            letter-spacing: 0.5px;
+            transition: all 0.2s;
+        }
+        
+        .propose-btn:hover {
+            background: var(--line-black);
+            color: #fff;
+            opacity: 0.9;
+            transform: translateY(-2px);
+            box-shadow: 4px 4px 0 rgba(0,0,0,0.2);
+        }
+        
+        /* Agent Analysis Panel */
+        .agent-analysis {
+            margin: 30px 0;
+            padding: 25px;
+            border: 2px solid var(--line-black);
+            background: var(--white);
+            display: none;
+        }
+        
+        .agent-analysis.active {
+            display: block;
+            animation: fadeInUp 0.5s ease-out;
+        }
+        
+        .analysis-section {
+            margin: 20px 0;
+        }
+        
+        .analysis-title {
+            font-size: 1em;
+            font-weight: 600;
+            margin-bottom: 15px;
+            color: var(--line-black);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .analysis-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+        
+        .analysis-item {
+            padding: 10px;
+            border: 1px solid var(--line-black);
+            background: var(--bg-gray);
+        }
+        
+        .analysis-label {
+            font-size: 0.75em;
+            color: var(--text-gray);
+            margin-bottom: 5px;
+        }
+        
+        .analysis-value {
+            font-size: 0.9em;
+            font-weight: 600;
+            color: var(--line-black);
+        }
+        
+        /* Agent Decision Log */
+        .agent-log {
+            margin: 30px 0;
+            padding: 20px;
+            border: 2px solid var(--line-black);
+            background: #000;
+            color: #00ff00;
+            font-family: 'Courier New', monospace;
+            font-size: 0.8em;
+            line-height: 1.6;
+            max-height: 200px;
+            overflow-y: auto;
+            display: none;
+        }
+        
+        .agent-log.active {
+            display: block;
+            animation: fadeInUp 0.5s ease-out;
+        }
+        
+        .log-entry {
+            margin: 5px 0;
+            opacity: 0;
+            animation: logAppear 0.3s ease-out forwards;
+        }
+        
+        @keyframes logAppear {
+            to {
+                opacity: 1;
+            }
+        }
+        
+        .log-time {
+            color: #888;
+        }
+        
+        /* Decision Result */
+        .decision-result {
+            margin: 30px 0;
+            padding: 25px;
+            border: 3px solid var(--line-black);
+            background: var(--white);
+            text-align: center;
+            display: none;
+        }
+        
+        .decision-result.active {
+            display: block;
+            animation: fadeInUp 0.5s ease-out;
+        }
+        
+        .decision-accepted {
+            border-color: #00aa00;
+        }
+        
+        .decision-rejected {
+            border-color: #aa0000;
+        }
+        
+        .decision-modified {
+            border-color: var(--accent-orange);
+        }
+        
+        .decision-icon {
+            font-size: 3em;
+            margin-bottom: 15px;
+        }
+        
+        .decision-text {
+            font-size: 1.5em;
+            font-weight: 600;
+            margin-bottom: 15px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+        
+        .decision-details {
+            font-size: 0.85em;
+            color: var(--text-gray);
+            margin-top: 12px;
+        }
+        
+        /* Overlay */
+        .overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(2px);
+            z-index: 999;
+        }
+        
+        .overlay.active {
+            display: block;
+        }
+        
+        /* Market Overview Section */
+        .market-section {
+            margin: 120px 0;
+            padding: 0 40px;
+        }
+        
+        .market-title {
+            font-size: 2em;
+            font-weight: 300;
+            margin-bottom: 40px;
+            letter-spacing: -1px;
+        }
+        
+        .market-table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+            border: 2px solid var(--line-black);
+            background: var(--white);
+            margin-bottom: 40px;
+        }
+        
+        .market-table th,
+        .market-table td {
+            border-right: 2px solid var(--line-black);
+            border-bottom: 2px solid var(--line-black);
+            padding: 15px;
+            text-align: left;
+            font-weight: 500;
+            font-size: 0.85em;
+            margin: 0;
+        }
+        
+        .market-table th {
+            background: var(--bg-gray);
+            color: var(--line-black);
+            border-top: 2px solid var(--line-black);
+        }
+        
+        .market-table th:first-child,
+        .market-table td:first-child {
+            border-left: 2px solid var(--line-black);
+        }
+        
+        .market-table th:last-child,
+        .market-table td:last-child {
+            border-right: 2px solid var(--line-black);
+        }
+        
+        .market-table tr:last-child td {
+            border-bottom: 2px solid var(--line-black);
+        }
+        
+        .market-table td {
+            padding: 12px 15px;
+            color: var(--text-gray);
+        }
+        
+        .market-table tr {
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        
+        .market-table tr:hover {
+            background: rgba(0,0,0,0.03);
+        }
+        
+        .token-name {
+            font-weight: 600;
+            color: var(--line-black);
+        }
+        
+        .price-positive {
+            color: #00aa00;
+        }
+        
+        .price-negative {
+            color: #aa0000;
+        }
+        
+        .bias-long {
+            color: #00aa00;
+            font-weight: 600;
+        }
+        
+        .bias-short {
+            color: #aa0000;
+            font-weight: 600;
+        }
+        
+        .bias-neutral {
+            color: var(--text-gray);
+        }
+        
+        .status-active {
+            color: #00aa00;
+            font-weight: 600;
+        }
+        
+        .status-restricted {
+            color: var(--accent-orange);
+            font-weight: 600;
+        }
+        
+        .status-halted {
+            color: #aa0000;
+            font-weight: 600;
+        }
+        
+        /* Token Window (Modal) */
+        .token-window {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) scale(0.88);
+            width: 88%;
+            max-width: 950px;
+            max-height: 92vh;
+            background: #ffffff;
+            border: 3px solid var(--line-black);
+            z-index: 1000;
+            box-shadow: 10px 10px 0 rgba(0,0,0,0.3);
+            overflow-y: auto;
+        }
+        
+        /* Status Window (Modal) */
+        .status-window {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 90%;
+            max-width: 800px;
+            max-height: 80vh;
+            background: #ffffff;
+            border: 3px solid var(--line-black);
+            z-index: 1000;
+            box-shadow: 10px 10px 0 rgba(0,0,0,0.3);
+            overflow-y: auto;
+        }
+        
+        .status-window.active {
+            display: block;
+            animation: windowAppear 0.3s ease-out;
+        }
+        
+        .status-content {
+            padding: 30px;
+        }
+        
+        .status-token-item {
+            padding: 20px;
+            margin: 15px 0;
+            border: 2px solid var(--line-black);
+            background: #ffffff;
+        }
+        
+        .status-token-header {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+        
+        .status-token-logo {
+            width: 40px;
+            height: 40px;
+            border-radius: 4px;
+            border: 1px solid var(--line-black);
+            object-fit: contain;
+            background: #ffffff;
+        }
+        
+        .status-token-name {
+            font-size: 1.2em;
+            font-weight: 600;
+            color: var(--line-black);
+        }
+        
+        .status-token-info {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            margin-top: 15px;
+        }
+        
+        .status-info-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(0,0,0,0.1);
+        }
+        
+        .status-info-label {
+            color: var(--text-gray);
+            font-size: 0.9em;
+        }
+        
+        .status-info-value {
+            font-weight: 600;
+            color: var(--line-black);
+        }
+        
+        .change-positive {
+            color: #00aa00;
+        }
+        
+        .change-negative {
+            color: #aa0000;
+        }
+        
+        .copy-ca-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 12px;
+            border: 2px solid var(--line-black);
+            background: #ffffff;
+            color: var(--line-black);
+            font-size: 0.85em;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            margin-left: 10px;
+        }
+        
+        .copy-ca-btn:hover {
+            background: var(--line-black);
+            color: #ffffff;
+        }
+        
+        .copy-ca-btn.copied {
+            background: #00aa00;
+            color: #ffffff;
+            border-color: #00aa00;
+        }
+        
+        .gmgn-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            margin-left: 10px;
+            text-decoration: none;
+            color: var(--line-black);
+            transition: opacity 0.2s;
+        }
+        
+        .gmgn-link:hover {
+            opacity: 0.7;
+        }
+        
+        .gmgn-logo {
+            width: 30px;
+            height: 30px;
+            display: inline-block;
+            border: 2px solid var(--line-black);
+            padding: 5px;
+            background: #ffffff;
+        }
+        
+        .contract-actions {
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        
+        .token-window.active {
+            display: block;
+            animation: windowAppear 0.3s ease-out;
+        }
+        
+        @keyframes windowAppear {
+            from {
+                opacity: 0;
+                transform: translate(-50%, -50%) scale(0.9);
+            }
+            to {
+                opacity: 1;
+                transform: translate(-50%, -50%) scale(1);
+            }
+        }
+        
+        .window-header {
+            border-bottom: 2px solid var(--line-black);
+            padding: 12px 18px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #ffffff;
+        }
+        
+        .window-title {
+            font-size: 1.05em;
+            font-weight: 500;
+            color: var(--line-black);
+        }
+        
+        .window-close {
+            width: 30px;
+            height: 30px;
+            border: 2px solid var(--line-black);
+            background: transparent;
+            cursor: pointer;
+            position: relative;
+            font-size: 1.2em;
+            line-height: 1;
+        }
+        
+        .window-close::before,
+        .window-close::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 15px;
+            height: 2px;
+            background: var(--line-black);
+            transform: translate(-50%, -50%) rotate(45deg);
+        }
+        
+        .window-close::after {
+            transform: translate(-50%, -50%) rotate(-45deg);
+        }
+        
+        .window-content {
+            padding: 18px;
+            background: #ffffff;
+        }
+        
+        /* Price Chart */
+        .price-chart {
+            border: 2px solid var(--line-black);
+            padding: 15px;
+            margin: 15px 0;
+            height: 250px;
+            position: relative;
+            background: #ffffff;
+        }
+        
+        .chart-container {
+            position: relative;
+            width: 100%;
+            height: 100%;
+        }
+        
+        .chart-svg {
+            width: 100%;
+            height: 100%;
+        }
+        
+        .chart-grid-line {
+            stroke: var(--line-black);
+            stroke-width: 1;
+            stroke-dasharray: 4, 4;
+            opacity: 0.2;
+        }
+        
+        .chart-candle {
+            stroke: var(--line-black);
+            stroke-width: 2;
+        }
+        
+        .candle-up {
+            fill: #00aa00;
+            stroke: #00aa00;
+        }
+        
+        .candle-down {
+            fill: #aa0000;
+            stroke: #aa0000;
+        }
+        
+        .candle-wick {
+            stroke-width: 1.5;
+        }
+        
+        .chart-line {
+            stroke: var(--line-black);
+            stroke-width: 2;
+            fill: none;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
+        
+        .chart-area {
+            fill: var(--line-black);
+            opacity: 0.1;
+        }
+        
+        .volume-bar {
+            fill: var(--line-black);
+            opacity: 0.3;
+        }
+        
+        .chart-marker {
+            fill: var(--line-black);
+            stroke: var(--line-black);
+            stroke-width: 1;
+        }
+        
+        .marker-accepted {
+            fill: #00aa00;
+        }
+        
+        .marker-rejected {
+            fill: #aa0000;
+        }
+        
+        .marker-agent {
+            fill: var(--accent-orange);
+        }
+        
+        .chart-label {
+            font-family: 'Inter', sans-serif;
+            font-size: 10px;
+            fill: var(--text-gray);
+        }
+        
+        .ma-line {
+            stroke-width: 1.5;
+            stroke-dasharray: 5, 5;
+        }
+        
+        .ma-fast {
+            stroke: #0066ff;
+        }
+        
+        .ma-slow {
+            stroke: #654194;
+        }
+        
+        @keyframes drawBar {
+            from {
+                height: 0;
+                y: 330;
+            }
+            to {
+                height: attr(height);
+                y: attr(y);
+            }
+        }
+        
+        @keyframes drawArea {
+            from {
+                opacity: 0;
+            }
+            to {
+                opacity: 0.1;
+            }
+        }
+        
+        /* Positions Table */
+        .positions-table-container {
+            border: 2px solid var(--line-black);
+            padding: 15px;
+            margin: 15px 0;
+            background: #ffffff;
+            overflow-x: auto;
+        }
+        
+        .positions-table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+            font-size: 0.85em;
+        }
+        
+        .positions-table th,
+        .positions-table td {
+            padding: 10px 8px;
+            text-align: left;
+            border-right: 2px solid var(--line-black);
+            border-bottom: 2px solid var(--line-black);
+        }
+        
+        .positions-table th {
+            background: #ffffff;
+            font-weight: 600;
+            color: var(--line-black);
+            border-top: 2px solid var(--line-black);
+        }
+        
+        .positions-table th:first-child,
+        .positions-table td:first-child {
+            border-left: 2px solid var(--line-black);
+        }
+        
+        .positions-table tr:last-child td {
+            border-bottom: 2px solid var(--line-black);
+        }
+        
+        .positions-table td {
+            font-family: monospace;
+            font-size: 0.9em;
+        }
+        
+        .position-type-long {
+            color: #00aa00;
+            font-weight: 600;
+        }
+        
+        .position-type-short {
+            color: #aa0000;
+            font-weight: 600;
+        }
+        
+        .pnl-positive {
+            color: #00aa00;
+        }
+        
+        .pnl-negative {
+            color: #aa0000;
+        }
+        
+        .position-status-active {
+            color: #00aa00;
+            font-weight: 600;
+        }
+        
+        .position-status-liquidated {
+            color: #aa0000;
+            font-weight: 600;
+        }
+        
+        /* Action Panel */
+        .action-panel {
+            border: 2px solid var(--line-black);
+            padding: 15px;
+            margin: 12px 0;
+            background: #ffffff;
+        }
+        
+        .action-buttons {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        
+        .action-btn {
+            flex: 1;
+            padding: 10px;
+            border: 2px solid var(--line-black);
+            background: transparent;
+            color: var(--line-black);
+            font-size: 0.9em;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-family: 'Inter', sans-serif;
+        }
+        
+        .action-btn:hover {
+            background: var(--line-black);
+            color: #ffffff;
+        }
+        
+        .action-btn.active {
+            background: var(--line-black);
+            color: #ffffff;
+        }
+        
+        .action-form {
+            margin-top: 12px;
+        }
+        
+        .form-group {
+            margin: 10px 0;
+        }
+        
+        .form-label {
+            display: block;
+            font-size: 0.85em;
+            margin-bottom: 8px;
+            color: var(--text-gray);
+            font-weight: 500;
+        }
+        
+        .form-input {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid var(--line-black);
+            background: #ffffff;
+            font-size: 0.9em;
+            font-family: 'Inter', sans-serif;
+        }
+        
+        .form-slider {
+            width: 100%;
+            margin: 10px 0;
+            -webkit-appearance: none;
+            appearance: none;
+            height: 8px;
+            background: var(--bg-gray);
+            border: 1px solid var(--line-black);
+            outline: none;
+        }
+        .token-window .form-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 18px;
+            height: 18px;
+            background: var(--line-black);
+            border: 2px solid var(--line-black);
+            cursor: pointer;
+        }
+        .token-window .form-slider::-moz-range-thumb {
+            width: 18px;
+            height: 18px;
+            background: var(--line-black);
+            border: 2px solid var(--line-black);
+            cursor: pointer;
+        }
+        .token-window .form-slider::-moz-range-track {
+            background: var(--bg-gray);
+            border: 1px solid var(--line-black);
+        }
+        
+        .slider-value {
+            font-size: 0.9em;
+            color: var(--line-black);
+            font-weight: 600;
+        }
+        
+        .form-select {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid var(--line-black);
+            background: #ffffff;
+            font-size: 0.9em;
+            font-family: 'Inter', sans-serif;
+        }
+        
+        .propose-btn {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid var(--line-black);
+            background: var(--line-black);
+            color: #ffffff;
+            font-size: 0.85em;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 12px;
+            transition: all 0.2s;
+            font-family: 'Inter', sans-serif;
+        }
+        
+        .propose-btn:hover {
+            background: var(--line-black);
+            color: #fff;
+            transform: translateY(-2px);
+            box-shadow: 4px 4px 0 rgba(0,0,0,0.2);
+        }
+        
+        /* Agent Analysis Panel */
+        .agent-analysis {
+            border: 2px solid var(--line-black);
+            padding: 15px;
+            margin: 12px 0;
+            background: #ffffff;
+            display: none;
+        }
+        
+        .agent-analysis.active {
+            display: block;
+            animation: fadeIn 0.5s ease-out;
+        }
+        
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .analysis-section {
+            margin: 12px 0;
+            padding: 10px;
+            border: 1px solid var(--line-black);
+            background: #ffffff;
+        }
+        
+        .analysis-title {
+            font-size: 0.85em;
+            font-weight: 600;
+            margin-bottom: 10px;
+            color: var(--line-black);
+        }
+        
+        .analysis-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(0,0,0,0.1);
+            font-size: 0.85em;
+        }
+        
+        .analysis-item:last-child {
+            border-bottom: none;
+        }
+        
+        .analysis-label {
+            color: var(--text-gray);
+        }
+        
+        .analysis-value {
+            font-weight: 600;
+            color: var(--line-black);
+        }
+        
+        /* Agent Decision Log */
+        .agent-log {
+            border: 2px solid var(--line-black);
+            padding: 12px;
+            margin: 12px 0;
+            background: #000;
+            color: #00ff00;
+            font-family: 'Courier New', monospace;
+            font-size: 0.7em;
+            line-height: 1.4;
+            max-height: 120px;
+            overflow-y: auto;
+            display: none;
+        }
+        
+        .agent-log.active {
+            display: block;
+        }
+        
+        .log-entry {
+            margin: 5px 0;
+            animation: logAppear 0.3s ease-out;
+        }
+        
+        @keyframes logAppear {
+            from {
+                opacity: 0;
+            }
+            to {
+                opacity: 1;
+            }
+        }
+        
+        .log-time {
+            color: #888;
+        }
+        
+        /* Decision Result */
+        .decision-result {
+            border: 3px solid var(--line-black);
+            padding: 15px;
+            margin: 12px 0;
+            text-align: center;
+            display: none;
+            background: #ffffff;
+        }
+        
+        .decision-result.active {
+            display: block;
+            animation: resultAppear 0.5s ease-out;
+        }
+        
+        @keyframes resultAppear {
+            from {
+                opacity: 0;
+                transform: scale(0.9);
+            }
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+        
+        .decision-status {
+            font-size: 1.8em;
+            font-weight: 600;
+            margin: 12px 0;
+        }
+        
+        .decision-accepted {
+            color: #00aa00;
+        }
+        
+        .decision-rejected {
+            color: #aa0000;
+        }
+        
+        .decision-modified {
+            color: var(--accent-orange);
+        }
+        
+        .decision-details {
+            margin-top: 20px;
+            font-size: 0.9em;
+            color: var(--text-gray);
+        }
+        
+        /* Overlay */
+        .overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(2px);
+            z-index: 999;
+        }
+        
+        .overlay.active {
+            display: block;
+        }
+        
+        /* CTA section */
+        .cta-section {
+            margin: 120px 0;
+            text-align: center;
+            padding: 80px 40px;
+        }
+        
+        .cta-title {
+            font-size: 3em;
+            font-weight: 300;
+            margin-bottom: 30px;
+            letter-spacing: -2px;
+            color: var(--line-black);
+        }
+        
+        .cta-text {
+            font-size: 1em;
+            color: var(--text-gray);
+            margin-bottom: 40px;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+            line-height: 1.7;
+        }
+        
+        /* Buttons */
+        .btn {
+            display: inline-block;
+            padding: 12px 30px;
+            border: 2px solid var(--line-black);
+            background: transparent;
+            color: var(--line-black);
+            text-decoration: none;
+            font-size: 0.85em;
+            font-weight: 400;
+            letter-spacing: 1px;
+            margin: 0 10px;
+            transition: all 0.3s;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: var(--line-black);
+            transition: left 0.3s;
+            z-index: -1;
+        }
+        
+        .btn:hover {
+            color: #fff;
+        }
+        
+        .btn:hover::before {
+            left: 0;
+        }
+        
+        .positions-empty-state .open-position-btn {
+            margin: 0;
+            transition: all 0.2s;
+        }
+        .positions-empty-state .open-position-btn::before {
+            display: none;
+        }
+        .positions-empty-state .open-position-btn:hover {
+            background: var(--line-black);
+            color: #fff;
+        }
+        
+        /* Footer */
+        footer {
+            padding: 80px 40px 40px;
+            border-top: 2px solid var(--line-black);
+            margin-top: 100px;
+            background: var(--white);
+        }
+        
+        .footer-content {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: 2fr 1fr 1fr 1fr;
+            gap: 60px;
+            margin-bottom: 40px;
+        }
+        
+        .footer-brand {
+            max-width: 300px;
+        }
+        
+        .footer-brand h3 {
+            font-size: 1.8em;
+            font-weight: 600;
+            margin-bottom: 15px;
+            color: var(--line-black);
+            letter-spacing: -1px;
+        }
+        
+        .footer-brand p {
+            font-size: 0.9em;
+            color: var(--text-gray);
+            line-height: 1.6;
+            margin-bottom: 20px;
+        }
+        
+        .footer-links h4 {
+            font-size: 1em;
+            font-weight: 600;
+            margin-bottom: 20px;
+            color: var(--line-black);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .footer-links ul {
+            list-style: none;
+            padding: 0;
+        }
+        
+        .footer-links li {
+            margin-bottom: 12px;
+        }
+        
+        .footer-links a {
+            color: var(--text-gray);
+            text-decoration: none;
+            font-size: 0.9em;
+            transition: color 0.2s;
+            position: relative;
+        }
+        
+        .footer-links a:hover {
+            color: var(--line-black);
+        }
+        
+        .footer-links a::after {
+            content: '';
+            position: absolute;
+            bottom: -2px;
+            left: 0;
+            width: 0;
+            height: 1px;
+            background: var(--line-black);
+            transition: width 0.2s;
+        }
+        
+        .footer-links a:hover::after {
+            width: 100%;
+        }
+        
+        .footer-social {
+            display: flex;
+            gap: 15px;
+            margin-top: 20px;
+        }
+        
+        .footer-social a {
+            display: inline-block;
+            width: 40px;
+            height: 40px;
+            border: 2px solid var(--line-black);
+            text-align: center;
+            line-height: 36px;
+            text-decoration: none;
+            color: var(--line-black);
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+        
+        .footer-social a:hover {
+            background: var(--line-black);
+            color: var(--white);
+            transform: translateY(-2px);
+        }
+        
+        @media (max-width: 1024px) {
+            .footer-content {
+                grid-template-columns: 1fr 1fr;
+                gap: 40px;
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .footer-content {
+                grid-template-columns: 1fr;
+                gap: 30px;
+            }
+        }
+        
+        /* Floating elements */
+        .floating-element {
+            position: absolute;
+            width: 2px;
+            height: 100px;
+            background: var(--line-black);
+            opacity: 0.3;
+            animation: float 4s ease-in-out infinite;
+        }
+        
+        @keyframes float {
+            0%, 100% {
+                transform: translateY(0) rotate(0deg);
+                opacity: 0.3;
+            }
+            50% {
+                transform: translateY(-20px) rotate(5deg);
+                opacity: 0.6;
+            }
+        }
+        
+        /* Ocean elements */
+        .ocean-element {
+            position: absolute;
+            z-index: 0;
+            pointer-events: none;
+            opacity: 0.3;
+        }
+        
+        .ocean-fish {
+            animation: swim 15s ease-in-out infinite;
+        }
+        
+        .ocean-shell {
+            animation: floatShell 8s ease-in-out infinite;
+        }
+        
+        .ocean-fish svg,
+        .ocean-shell svg {
+            width: 100%;
+            height: 100%;
+        }
+        
+        .fish-line {
+            stroke: var(--line-black);
+            stroke-width: 2;
+            fill: none;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+            animation: drawFish 2s ease-out;
+        }
+        
+        .fish-eye {
+            fill: var(--line-black);
+            animation: blink 3s ease-in-out infinite;
+        }
+        
+        .shell-line {
+            stroke: var(--line-black);
+            stroke-width: 2;
+            fill: none;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+            animation: drawShell 2s ease-out;
+        }
+        
+        @keyframes swim {
+            0% {
+                transform: translateX(-150px) translateY(0) scaleX(1);
+            }
+            25% {
+                transform: translateX(25vw) translateY(0) scaleX(1);
+            }
+            50% {
+                transform: translateX(50vw) translateY(0) scaleX(-1);
+            }
+            75% {
+                transform: translateX(75vw) translateY(0) scaleX(-1);
+            }
+            100% {
+                transform: translateX(calc(100vw + 150px)) translateY(0) scaleX(-1);
+            }
+        }
+        
+        @keyframes floatShell {
+            0%, 100% {
+                transform: translateY(0) rotate(0deg);
+            }
+            25% {
+                transform: translateY(-15px) rotate(-5deg);
+            }
+            50% {
+                transform: translateY(-25px) rotate(0deg);
+            }
+            75% {
+                transform: translateY(-15px) rotate(5deg);
+            }
+        }
+        
+        @keyframes drawFish {
+            from {
+                stroke-dasharray: 200;
+                stroke-dashoffset: 200;
+                opacity: 0;
+            }
+            to {
+                stroke-dashoffset: 0;
+                opacity: 1;
+            }
+        }
+        
+        @keyframes drawShell {
+            from {
+                stroke-dasharray: 150;
+                stroke-dashoffset: 150;
+                opacity: 0;
+            }
+            to {
+                stroke-dashoffset: 0;
+                opacity: 1;
+            }
+        }
+        
+        @keyframes blink {
+            0%, 90%, 100% {
+                opacity: 1;
+            }
+            95% {
+                opacity: 0.3;
+            }
+        }
+        
+        @keyframes swimTail {
+            0%, 100% {
+                transform: rotate(0deg);
+            }
+            50% {
+                transform: rotate(15deg);
+            }
+        }
+        
+        /* Responsive */
+        @media (max-width: 768px) {
+            .wireframe-figure {
+                display: none;
+            }
+            
+            .content {
+                margin-left: 0;
+            }
+            
+            h1 {
+                font-size: 3em;
+            }
+            
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .comparison-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            nav {
+                top: 15px;
+                right: 20px;
+                gap: 15px;
+            }
+        }
+        
+        /* Loading Screen */
+        .loading-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 10000;
+            background: #e0e0e0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: opacity 0.5s ease-out;
+        }
+        
+        .loading-screen.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+        
+        .loading-content {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            padding: 0 60px;
+            padding-top: calc(50% - 550px);
+        }
+        
+        .loading-background {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 0%;
+            height: 100%;
+            background: linear-gradient(to right, rgba(101, 65, 148, 0.6) 0%, rgba(101, 65, 148, 0.3) 50%, rgba(101, 65, 148, 0) 100%);
+            filter: blur(60px);
+            transition: width 0.05s linear;
+            z-index: 1;
+            will-change: width;
+        }
+        
+        .loading-line {
+            position: absolute;
+            top: 50%;
+            left: 0;
+            width: 100%;
+            height: 2px;
+            background: rgba(0, 0, 0, 0.2);
+            z-index: 2;
+            transform: translateY(-50%);
+        }
+        
+        .loading-line-fill {
+            position: absolute;
+            top: 50%;
+            left: 0;
+            width: 0%;
+            height: 2px;
+            background: var(--line-black);
+            z-index: 3;
+            transform: translateY(-50%);
+            transition: width 0.05s linear;
+        }
+        
+        .loading-text {
+            position: relative;
+            z-index: 4;
+            font-size: 2em;
+            font-weight: 600;
+            color: var(--line-black);
+        }
+        
+        .loading-subtitle {
+            position: absolute;
+            top: 50%;
+            left: 60px;
+            margin-top: 20px;
+            z-index: 4;
+            font-size: 0.9em;
+            font-weight: 400;
+            color: var(--line-black);
+            opacity: 0.7;
+        }
+        
+        .loading-percent {
+            position: relative;
+            z-index: 4;
+            font-size: 1.2em;
+            font-weight: 400;
+            color: var(--line-black);
+            opacity: 0.6;
+        }
+    </style>
+</head>
+<body>
+    <!-- Loading Screen -->
+    <div class="loading-screen" id="loadingScreen">
+        <div class="loading-background" id="loadingBackground"></div>
+        <div class="loading-line"></div>
+        <div class="loading-line-fill" id="loadingLineFill"></div>
+        <div class="loading-content">
+            <div class="loading-text">Clawcolator</div>
+            <div class="loading-percent" id="loadingPercent">0%</div>
+        </div>
+        <div class="loading-subtitle">Agent-first fork of Percolator</div>
+    </div>
+    
+    <!-- Background animated lines -->
+    <div class="bg-lines">
+        <div class="bg-line" style="top: 10%; left: 0; height: 1px; animation-delay: 0s;"></div>
+        <div class="bg-line" style="top: 30%; left: 0; height: 1px; animation-delay: 1s;"></div>
+        <div class="bg-line" style="top: 50%; left: 0; height: 1px; animation-delay: 2s;"></div>
+        <div class="bg-line" style="top: 70%; left: 0; height: 1px; animation-delay: 0.5s;"></div>
+        <div class="bg-line" style="top: 90%; left: 0; height: 1px; animation-delay: 1.5s;"></div>
+    </div>
+
+    <!-- Navigation -->
+    <nav>
+        <a href="#about">About</a>
+        <a href="docs.html">Docs</a>
+        <a href="#contact">Contact</a>
+    </nav>
+
+    <!-- Main container -->
+    <div class="container">
+        <!-- Hero section -->
+        <section class="hero" id="about">
+            <!-- Ocean shell -->
+            <div class="ocean-element ocean-shell" style="bottom: 10%; right: 10%; width: 50px; height: 60px; animation-delay: 2s;">
+                <svg viewBox="0 0 50 60" xmlns="http://www.w3.org/2000/svg">
+                    <path class="shell-line" d="M 25 0 Q 35 10 35 25 Q 35 40 25 50 Q 15 40 15 25 Q 15 10 25 0" stroke-width="2"/>
+                    <path class="shell-line" d="M 25 0 Q 30 15 30 25 Q 30 35 25 50" stroke-width="1.5"/>
+                    <path class="shell-line" d="M 25 0 Q 20 15 20 25 Q 20 35 25 50" stroke-width="1.5"/>
+                </svg>
+            </div>
+            
+            <!-- Animated wireframe crab -->
+            <svg class="wireframe-figure" viewBox="0 0 500 400" xmlns="http://www.w3.org/2000/svg">
+                <!-- Crab body (main shell) -->
+                <ellipse class="wireframe-line thick" cx="250" cy="200" rx="80" ry="60" style="animation-delay: 0s;"/>
+                
+                <!-- Left claw (large) -->
+                <path class="wireframe-line thick" d="M 170 200 L 50 180 L 30 150" style="animation-delay: 0.5s;"/>
+                <path class="wireframe-line" d="M 30 150 L 10 120 L 5 100" style="animation-delay: 0.7s;"/>
+                <path class="wireframe-line" d="M 30 150 L 20 130 L 15 110" style="animation-delay: 0.8s;"/>
+                <!-- Claw pincers -->
+                <path class="wireframe-line thin" d="M 5 100 L 0 90 L 10 95" style="animation-delay: 1s;"/>
+                <path class="wireframe-line thin" d="M 5 100 L 15 95 L 20 90" style="animation-delay: 1.1s;"/>
+                
+                <!-- Right claw (large) -->
+                <path class="wireframe-line thick" d="M 330 200 L 450 180 L 470 150" style="animation-delay: 0.6s;"/>
+                <path class="wireframe-line" d="M 470 150 L 490 120 L 495 100" style="animation-delay: 0.8s;"/>
+                <path class="wireframe-line" d="M 470 150 L 480 130 L 485 110" style="animation-delay: 0.9s;"/>
+                <!-- Claw pincers -->
+                <path class="wireframe-line thin" d="M 495 100 L 500 90 L 490 95" style="animation-delay: 1.2s;"/>
+                <path class="wireframe-line thin" d="M 495 100 L 485 95 L 480 90" style="animation-delay: 1.3s;"/>
+                
+                <!-- Left legs (4 legs) -->
+                <path class="wireframe-line" d="M 200 240 L 150 280 L 130 320" style="animation-delay: 1.5s;"/>
+                <path class="wireframe-line" d="M 220 250 L 170 290 L 150 330" style="animation-delay: 1.6s;"/>
+                <path class="wireframe-line" d="M 200 260 L 160 300 L 140 340" style="animation-delay: 1.7s;"/>
+                <path class="wireframe-line" d="M 180 270 L 140 310 L 120 350" style="animation-delay: 1.8s;"/>
+                
+                <!-- Right legs (4 legs) -->
+                <path class="wireframe-line" d="M 300 240 L 350 280 L 370 320" style="animation-delay: 1.5s;"/>
+                <path class="wireframe-line" d="M 280 250 L 330 290 L 350 330" style="animation-delay: 1.6s;"/>
+                <path class="wireframe-line" d="M 300 260 L 340 300 L 360 340" style="animation-delay: 1.7s;"/>
+                <path class="wireframe-line" d="M 320 270 L 360 310 L 380 350" style="animation-delay: 1.8s;"/>
+                
+                <!-- Eyes -->
+                <circle class="wireframe-line" cx="220" cy="170" r="8" style="animation-delay: 2s;"/>
+                <circle class="wireframe-line" cx="280" cy="170" r="8" style="animation-delay: 2.1s;"/>
+                <!-- Eye stalks -->
+                <path class="wireframe-line thin" d="M 220 170 L 210 150" style="animation-delay: 2.2s;"/>
+                <path class="wireframe-line thin" d="M 280 170 L 290 150" style="animation-delay: 2.3s;"/>
+                
+                <!-- Body segments/details -->
+                <path class="wireframe-line thin" d="M 200 200 L 300 200" style="animation-delay: 2.5s;"/>
+                <path class="wireframe-line thin" d="M 190 220 L 310 220" style="animation-delay: 2.7s;"/>
+                <path class="wireframe-line thin" d="M 180 240 L 320 240" style="animation-delay: 2.9s;"/>
+                
+                <!-- Claw joints -->
+                <circle class="wireframe-line thin" cx="50" cy="180" r="5" style="animation-delay: 3s;"/>
+                <circle class="wireframe-line thin" cx="450" cy="180" r="5" style="animation-delay: 3.1s;"/>
+            </svg>
+
+            <!-- Content -->
+            <div class="content">
+                <h1>Clawcolator</h1>
+                <p class="subtitle">Agent-first fork of Percolator</p>
+                <p class="description">
+                    Clawcolator is an agent-first fork of Percolator where all market decisions are delegated to an autonomous OpenClaw agent, while the protocol strictly enforces financial invariants and system safety.
+                </p>
+                <div class="hero-buttons">
+                    <button class="hero-btn-lp" onclick="openLiquidityProviderWindow()">Become Liquidity Provider</button>
+                    <a href="#market" class="hero-btn-lp hero-btn-market">Long memes with 10x</a>
+                </div>
+            </div>
+        </section>
+
+        <!-- Market Panel Section -->
+        <section class="market-section scroll-animate" id="market" style="position: relative;">
+            <!-- Ocean shell in market -->
+            <div class="ocean-element ocean-shell" style="top: 2%; left: 2%; width: 35px; height: 45px; animation-delay: 6s;">
+                <svg viewBox="0 0 35 45" xmlns="http://www.w3.org/2000/svg">
+                    <path class="shell-line" d="M 17.5 0 Q 25 7 25 18 Q 25 29 17.5 38 Q 10 29 10 18 Q 10 7 17.5 0" stroke-width="2"/>
+                    <path class="shell-line" d="M 17.5 0 Q 21 11 21 18 Q 21 25 17.5 38" stroke-width="1.5"/>
+                    <path class="shell-line" d="M 17.5 0 Q 14 11 14 18 Q 14 25 17.5 38" stroke-width="1.5"/>
+                </svg>
+            </div>
+            
+            <h2 class="market-title">Market Overview</h2>
+            <table class="market-table">
+                <thead>
+                    <tr>
+                        <th>Token</th>
+                        <th>Price</th>
+                        <th>24h Change</th>
+                        <th>MCap</th>
+                        <th>Long Exposure %</th>
+                        <th>Short Exposure %</th>
+                        <th>Agent Bias</th>
+                        <th>Long</th>
+                        <th>Short</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr class="token-row" data-token="GOYIM" data-address="9S8edqWxoWz5LYLnxWUmWBJnePg35WfdYQp7HQkUpump">
+                        <td class="token-name">
+                            <img src="goyim-logo.png" alt="Goyim" class="token-logo">
+                            <span>Goyim $GOYIM</span>
+                        </td>
+                        <td class="price" data-field="price">Loading...</td>
+                        <td class="change-24h" data-field="change24h">Loading...</td>
+                        <td class="mcap" data-field="mcap">Loading...</td>
+                        <td data-field="longExposure">58%</td>
+                        <td data-field="shortExposure">42%</td>
+                        <td class="bias-long">LONG</td>
+                        <td class="side-long enabled">enabled</td>
+                        <td class="side-short enabled">enabled</td>
+                        <td class="status-active">ACTIVE</td>
+                    </tr>
+                    <tr class="token-row" data-token="OPENCLAW" data-address="CxoaKHTGYAUkHwzK5dazVYuG3vvEXExrGznMwX1ipump">
+                        <td class="token-name">
+                            <img src="openclaw-logo.png" alt="OpenClaw" class="token-logo">
+                            <span>OPENCLAW $OPENCLAW</span>
+                        </td>
+                        <td class="price" data-field="price">Loading...</td>
+                        <td class="change-24h" data-field="change24h">Loading...</td>
+                        <td class="mcap" data-field="mcap">Loading...</td>
+                        <td data-field="longExposure">72%</td>
+                        <td data-field="shortExposure">28%</td>
+                        <td class="bias-long">LONG</td>
+                        <td class="side-long enabled">enabled</td>
+                        <td class="side-short enabled">enabled</td>
+                        <td class="status-active">ACTIVE</td>
+                    </tr>
+                    <tr class="token-row" data-token="BIGTROUT" data-address="EKwF2HD6X4rHHr4322EJeK9QBGkqhpHZQSanSUmWkecG">
+                        <td class="token-name">
+                            <img src="bigtrout-logo.png" alt="BigTrout" class="token-logo">
+                            <span>$BigTrout</span>
+                        </td>
+                        <td class="price" data-field="price">Loading...</td>
+                        <td class="change-24h" data-field="change24h">Loading...</td>
+                        <td class="mcap" data-field="mcap">Loading...</td>
+                        <td data-field="longExposure">35%</td>
+                        <td data-field="shortExposure">65%</td>
+                        <td class="bias-short">SHORT</td>
+                        <td class="side-long">—</td>
+                        <td class="side-short enabled">enabled</td>
+                        <td class="status-active">ACTIVE</td>
+                    </tr>
+                    <tr class="token-row" data-token="BUTTCOIN" data-address="Cm6fNnMk7NfzStP9CZpsQA2v3jjzbcYGAxdJySmHpump">
+                        <td class="token-name">
+                            <img src="buttcoin-logo.png" alt="Buttcoin" class="token-logo">
+                            <span>Buttcoin $BUTTCOIN</span>
+                        </td>
+                        <td class="price" data-field="price">Loading...</td>
+                        <td class="change-24h" data-field="change24h">Loading...</td>
+                        <td class="mcap" data-field="mcap">Loading...</td>
+                        <td data-field="longExposure">68%</td>
+                        <td data-field="shortExposure">32%</td>
+                        <td class="bias-long">LONG</td>
+                        <td class="side-long enabled">enabled</td>
+                        <td class="side-short enabled">enabled</td>
+                        <td class="status-active">ACTIVE</td>
+                    </tr>
+                    <tr class="token-row" data-token="PSYOPANIME" data-address="2nP9yKQNSGQy851iyawDvBkzkK2R2aqKArQCKc2gpump">
+                        <td class="token-name">
+                            <img src="psyopanime-logo.png" alt="PsyopAnime" class="token-logo">
+                            <span>PsyopAnime $PSYOPANIME</span>
+                        </td>
+                        <td class="price" data-field="price">Loading...</td>
+                        <td class="change-24h" data-field="change24h">Loading...</td>
+                        <td class="mcap" data-field="mcap">Loading...</td>
+                        <td data-field="longExposure">55%</td>
+                        <td data-field="shortExposure">45%</td>
+                        <td class="bias-long">LONG</td>
+                        <td class="side-long">—</td>
+                        <td class="side-short">—</td>
+                        <td class="status-halted">HALTED</td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+
+        <!-- Stats section -->
+        <section class="stats-section scroll-animate" style="position: relative;">
+            <!-- Ocean shell in stats -->
+            <div class="ocean-element ocean-shell" style="top: 5%; right: 5%; width: 40px; height: 50px; animation-delay: 1s;">
+                <svg viewBox="0 0 40 50" xmlns="http://www.w3.org/2000/svg">
+                    <path class="shell-line" d="M 20 0 Q 28 8 28 20 Q 28 32 20 40 Q 12 32 12 20 Q 12 8 20 0" stroke-width="2"/>
+                    <path class="shell-line" d="M 20 0 Q 24 12 24 20 Q 24 28 20 40" stroke-width="1.5"/>
+                    <path class="shell-line" d="M 20 0 Q 16 12 16 20 Q 16 28 20 40" stroke-width="1.5"/>
+                </svg>
+            </div>
+            
+            <h2 class="stats-title">Agent Adoption in DeFi</h2>
+            <div class="stat-line"></div>
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-number" data-value="36">0%</div>
+                    <div class="stat-label">Protocols using agents</div>
+                    <div class="stat-year">2023</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" data-value="52">0%</div>
+                    <div class="stat-label">Protocols using agents</div>
+                    <div class="stat-year">2024</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" data-value="70">0%</div>
+                    <div class="stat-label">Protocols using agents</div>
+                    <div class="stat-year">2025</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Problems section -->
+        <section class="problems-section scroll-animate" style="position: relative;">
+            <h2 class="problems-title">As agent adoption accelerates, existing protocol problems get worse</h2>
+            <div class="problems-list">
+                <div class="problem-item">
+                    <div class="problem-line"></div>
+                    <div class="problem-number">1.</div>
+                    <div class="problem-content">
+                        <h3>Risk management complexity is climbing</h3>
+                        <p>Protocols are more overwhelmed than ever trying to manage autonomous agents while maintaining safety guarantees.</p>
+                    </div>
+                </div>
+                <div class="problem-item">
+                    <div class="problem-line"></div>
+                    <div class="problem-number">2.</div>
+                    <div class="problem-content">
+                        <h3>Unmanageable agent behavior continues to grow</h3>
+                        <p>Despite AI's promise to optimize trading, protocols struggle with unpredictable agent decisions and edge cases.</p>
+                    </div>
+                </div>
+                <div class="problem-item">
+                    <div class="problem-line"></div>
+                    <div class="problem-number">3.</div>
+                    <div class="problem-content">
+                        <h3>Protocols are spending more time on agent management</h3>
+                        <p>Instead of focusing on core protocol improvements, teams are stuck debugging agent decisions and handling exceptions.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Comparison section -->
+        <section class="comparison-section scroll-animate" style="position: relative;">
+            <!-- Ocean shell in comparison -->
+            <div class="ocean-element ocean-shell" style="top: 5%; left: 3%; width: 45px; height: 55px; animation-delay: 4s;">
+                <svg viewBox="0 0 45 55" xmlns="http://www.w3.org/2000/svg">
+                    <path class="shell-line" d="M 22.5 0 Q 32 9 32 22 Q 32 35 22.5 45 Q 13 35 13 22 Q 13 9 22.5 0" stroke-width="2"/>
+                    <path class="shell-line" d="M 22.5 0 Q 27 13 27 22 Q 27 31 22.5 45" stroke-width="1.5"/>
+                    <path class="shell-line" d="M 22.5 0 Q 18 13 18 22 Q 18 31 22.5 45" stroke-width="1.5"/>
+                </svg>
+            </div>
+            
+            <h2 class="comparison-title">This is a protocol design problem, not a technology problem</h2>
+            <p class="comparison-subtitle">
+                AI agents just become another layer of complexity if applied to broken systems. But a small group of protocols are unlocking real value by reimagining how agent decisions happen from the ground up.
+            </p>
+            <div class="comparison-grid">
+                <div class="comparison-card">
+                    <div class="comparison-percent">50%</div>
+                    <div class="comparison-label">Traditional Protocols</div>
+                    <p class="comparison-description">
+                        Remain trapped in pilot purgatory, bolting AI agents onto broken workflows without the systematic support needed for transformation.
+                    </p>
+                </div>
+                <div class="comparison-card">
+                    <div class="comparison-percent">50%</div>
+                    <div class="comparison-label">Clawcolator</div>
+                    <p class="comparison-description">
+                        Doesn't just use agents, it systematically redesigns protocol around them. It builds the infrastructure that turns agents from helpful tools into protocol multipliers.
+                    </p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Architecture section -->
+        <section class="architecture-section scroll-animate" id="architecture" style="position: relative;">
+            <h2 class="architecture-title">Architecture</h2>
+            <div class="arch-diagram">
+                <!-- OpenClaw Agent -->
+                <div class="arch-box" style="margin-top: 0;">
+                    <h3>OpenClaw Agent</h3>
+                    <p>• Accepts or rejects trades</p>
+                    <p>• Manages liquidity</p>
+                    <p>• Manages market parameters</p>
+                    <p>• Performs matching</p>
+                    <p>• Manages risk</p>
+                    <p>• Responds to anomalies</p>
+                    <p>• Can initiate shutdown</p>
+                    
+                    <!-- Arrow down to Clawcolator Core -->
+                    <div class="arch-arrow" style="top: 100%; margin-top: 10px;">
+                        <div class="arch-arrow-down"></div>
+                        <div class="arrow-flow"></div>
+                    </div>
+                </div>
+                
+                <!-- Clawcolator Core -->
+                <div class="arch-box" style="margin-top: 20px;">
+                    <h3>Clawcolator Core</h3>
+                    <p>• Calculates balances and PnL</p>
+                    <p>• Validates margin and liquidations</p>
+                    <p>• Monitors invariants</p>
+                    <p>• Can reject any agent action</p>
+                    
+                    <!-- Bidirectional arrow showing feedback loop -->
+                    <div class="arch-arrow-bidirectional" style="top: -90px;"></div>
+                    
+                    <!-- Arrow down to Percolator -->
+                    <div class="arch-arrow" style="top: 100%; margin-top: 20px;">
+                        <div class="arch-arrow-down"></div>
+                        <div class="arrow-flow"></div>
+                    </div>
+                    
+                    <!-- SVG curved arrow for feedback -->
+                    <svg class="arch-svg-arrow" style="top: -40px; left: 60%; width: 200px; height: 80px;">
+                        <path d="M 0 40 Q 100 0 200 40" style="animation-delay: 0.5s;"/>
+                        <polygon points="200,40 195,35 195,45" style="animation-delay: 0.5s;"/>
+                    </svg>
+                </div>
+                
+                <!-- Percolator Risk Engine -->
+                <div class="arch-box" style="margin-top: 20px;">
+                    <h3>Percolator Risk Engine</h3>
+                    <p>• Formally verified accounting</p>
+                    <p>• Fund conservation guarantees</p>
+                    <p>• User isolation</p>
+                    
+                    <!-- Arrow back up showing validation feedback -->
+                    <div class="arch-arrow-bidirectional" style="top: -90px;"></div>
+                    
+                    <!-- SVG curved arrow back to Clawcolator Core -->
+                    <svg class="arch-svg-arrow" style="top: -40px; right: 60%; width: 200px; height: 80px;">
+                        <path d="M 200 40 Q 100 0 0 40" style="animation-delay: 1s;"/>
+                        <polygon points="0,40 5,35 5,45" style="animation-delay: 1s;"/>
+                    </svg>
+                </div>
+                
+                <!-- Side arrows showing data flow -->
+                <div class="arch-arrow-horizontal right" style="top: 33%; right: -120px; animation-delay: 1.5s;">
+                    <div class="flow-dot" style="left: 0; top: 50%; transform: translateY(-50%);"></div>
+                </div>
+                
+                <div class="arch-arrow-horizontal left" style="top: 66%; left: -120px; animation-delay: 2s;">
+                    <div class="flow-dot" style="right: 0; top: 50%; transform: translateY(-50%);"></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Status Window (Modal) -->
+        <div class="overlay" id="statusOverlay"></div>
+        <div class="status-window" id="statusWindow">
+            <div class="window-header">
+                <div class="window-title">Token Status Overview</div>
+                <button class="window-close" onclick="closeStatusWindow()"></button>
+            </div>
+            <div class="status-content" id="statusContent">
+                <!-- Status items will be populated by JavaScript -->
+            </div>
+        </div>
+
+        <!-- Liquidity Provider Window (Modal) -->
+        <div class="overlay" id="lpOverlay"></div>
+        <div class="token-window" id="lpWindow" style="max-width: 900px;">
+            <div class="window-header">
+                <div class="window-title">Become a Liquidity Provider</div>
+                <button class="window-close" onclick="closeLiquidityProviderWindow()"></button>
+            </div>
+            <div class="window-content">
+                <div style="margin-bottom: 25px;">
+                    <h3 style="font-size: 1.2em; margin-bottom: 15px; font-weight: 600;">What is a Liquidity Provider in Clawcolator?</h3>
+                    <p style="margin-bottom: 15px; line-height: 1.7;">
+                        Liquidity Providers (LPs) in Clawcolator are inventory holders who provide capital for users to trade against. Unlike traditional protocols, LPs in Clawcolator have enhanced control capabilities through a pluggable matcher program.
+                    </p>
+                </div>
+
+                <div style="margin-bottom: 25px; border: 2px solid var(--line-black); padding: 15px; background: #ffffff;">
+                    <h3 style="font-size: 1em; margin-bottom: 12px; font-weight: 600;">Key Features of LPs in Percolator/Clawcolator:</h3>
+                    <ul style="list-style: none; padding: 0; line-height: 1.8;">
+                        <li style="margin-bottom: 10px;">• <strong>Trade Selection:</strong> LP can reject trades through their matcher program</li>
+                        <li style="margin-bottom: 10px;">• <strong>Pluggable Matcher:</strong> LP provides a matching program/context that can implement AMM/RFQ/CLOB logic</li>
+                        <li style="margin-bottom: 10px;">• <strong>Position Fungibility:</strong> Positions opened with LP1 can be closed against LP2 — by design</li>
+                        <li style="margin-bottom: 10px;">• <strong>GC Protection:</strong> LP accounts are never garbage collected (GC)</li>
+                        <li style="margin-bottom: 10px;">• <strong>Variation Margin:</strong> The engine uses variation margin semantics, making positions fungible across LPs</li>
+                    </ul>
+                </div>
+
+                <div style="margin-bottom: 25px; border: 2px solid var(--line-black); padding: 15px; background: #ffffff;">
+                    <h3 style="font-size: 1em; margin-bottom: 12px; font-weight: 600;">How to Become an LP:</h3>
+                    <div style="line-height: 1.8;">
+                        <p style="margin-bottom: 12px;"><strong>1. Deposit Funds:</strong></p>
+                        <ul style="list-style: none; padding-left: 20px; margin-bottom: 15px;">
+                            <li>• Transfer tokens into the vault SPL account</li>
+                            <li>• Call <code style="background: #f5f5f5; padding: 2px 6px; border: 1px solid var(--line-black);">RiskEngine::deposit(idx, amount, now_slot)</code></li>
+                        </ul>
+                        
+                        <p style="margin-bottom: 12px;"><strong>2. Configure Matcher:</strong></p>
+                        <ul style="list-style: none; padding-left: 20px; margin-bottom: 15px;">
+                            <li>• Implement the <code style="background: #f5f5f5; padding: 2px 6px; border: 1px solid var(--line-black);">MatchingEngine</code> interface</li>
+                            <li>• Matcher can implement AMM, RFQ, or CLOB logic</li>
+                            <li>• Matcher can reject trades that don't meet your criteria</li>
+                        </ul>
+                        
+                        <p style="margin-bottom: 12px;"><strong>3. Risk Management:</strong></p>
+                        <ul style="list-style: none; padding-left: 20px; margin-bottom: 15px;">
+                            <li>• Engine checks solvency after each trade</li>
+                            <li>• If post-trade solvency fails, the trade is rejected</li>
+                            <li>• LP is not forced to accept every trade</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div style="margin-bottom: 25px; border: 2px solid var(--line-black); padding: 15px; background: #ffffff;">
+                    <h3 style="font-size: 1em; margin-bottom: 12px; font-weight: 600;">Technical Details:</h3>
+                    <div style="line-height: 1.8; font-size: 0.9em;">
+                        <p style="margin-bottom: 10px;"><strong>Trading:</strong></p>
+                        <p style="margin-bottom: 15px; padding-left: 15px;">
+                            Wrapper validates signatures and oracle input, then calls:<br>
+                            <code style="background: #f5f5f5; padding: 2px 6px; border: 1px solid var(--line-black); display: inline-block; margin-top: 5px;">RiskEngine::execute_trade(matcher, lp_idx, user_idx, now_slot, oracle_price, size)</code>
+                        </p>
+                        
+                        <p style="margin-bottom: 10px;"><strong>Liquidations:</strong></p>
+                        <p style="margin-bottom: 15px; padding-left: 15px;">
+                            Liquidations close the liquidated account at oracle price (no LP/AMM required). PnL is routed through the engine's waterfall.
+                        </p>
+                        
+                        <p style="margin-bottom: 10px;"><strong>Liquidity Fragmentation:</strong></p>
+                        <p style="padding-left: 15px;">
+                            Possible at the execution layer. Maximum fill against an LP is bounded by that LP's inventory/margin. Aggregation/routing across LPs is a wrapper-level feature.
+                        </p>
+                    </div>
+                </div>
+
+                <div style="border: 2px solid var(--line-black); padding: 15px; background: #ffffff;">
+                    <h3 style="font-size: 1em; margin-bottom: 12px; font-weight: 600;">Resources:</h3>
+                    <div style="display: flex; gap: 15px; flex-wrap: wrap;">
+                        <a href="https://github.com/aeyakovenko/percolator" target="_blank" class="btn" style="text-decoration: none; display: inline-block;">GitHub Repository</a>
+                        <a href="docs.html" class="btn" style="text-decoration: none; display: inline-block;">Documentation</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Token Window (Modal) -->
+        <div class="overlay" id="overlay"></div>
+        <div class="token-window" id="tokenWindow">
+            <div class="window-header">
+                <div class="window-title" id="windowTitle">MEME / SOL — Agent-Controlled Market</div>
+                <button class="window-close" onclick="closeTokenWindow()"></button>
+            </div>
+            <div class="window-content">
+                <!-- Contract Address -->
+                <div class="contract-info" style="border: 2px solid var(--line-black); padding: 12px; margin-bottom: 15px; background: #ffffff;">
+                    <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;">
+                        <div style="display: flex; align-items: center; gap: 10px; flex: 1; min-width: 200px;">
+                            <span style="font-weight: 600; font-size: 0.9em; color: var(--line-black);">Contract Address:</span>
+                            <span id="tokenContractAddress" style="font-size: 0.75em; word-break: break-all; color: var(--line-black);"></span>
+                        </div>
+                        <div class="contract-actions" style="display: flex; align-items: center; gap: 8px;">
+                            <button class="copy-ca-btn" id="tokenCopyBtn" onclick="copyTokenContractAddress()">Copy CA</button>
+                            <a href="#" target="_blank" class="gmgn-link" id="tokenGmgnLink">
+                                <img src="gmgn-logo.svg" alt="GMGN" class="gmgn-logo">
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Price Chart -->
+                <div class="price-chart">
+                    <div class="chart-container">
+                        <svg class="chart-svg" id="tokenChart" viewBox="0 0 1000 250" preserveAspectRatio="none">
+                            <g id="candlesContainer"></g>
+                        </svg>
+                    </div>
+                </div>
+
+                <!-- Open Positions (empty state) -->
+                <div class="positions-table-container positions-empty-state" style="border: 2px solid var(--line-black); padding: 24px; margin: 15px 0; background: #ffffff;">
+                    <h3 style="font-size: 1em; margin-bottom: 12px; font-weight: 600; color: var(--line-black);">Open Positions</h3>
+                    <p style="font-size: 0.95em; color: var(--text-gray); margin-bottom: 20px; line-height: 1.5;">You could be the first to open a position.</p>
+                    <a href="#" id="openPositionLink" class="btn open-position-btn">Open Position</a>
+                </div>
+
+                <!-- Long/Short Action Panel -->
+                <div class="action-panel">
+                    <h3 style="font-size: 1em; margin-bottom: 12px; font-weight: 500;">Propose Trade Action</h3>
+                    <div class="action-buttons">
+                        <button class="action-btn active" id="btnLong" onclick="selectAction('long')">LONG</button>
+                        <button class="action-btn" id="btnShort" onclick="selectAction('short')">SHORT</button>
+                    </div>
+                    <div class="action-form">
+                        <div class="form-group">
+                            <label class="form-label">Position Size</label>
+                            <input type="number" class="form-input" id="positionSize" placeholder="1000" value="1000">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Leverage: <span class="slider-value" id="leverageValue">5x</span></label>
+                            <input type="range" class="form-slider" id="leverageSlider" min="1" max="10" value="5" oninput="updateLeverage(this.value)">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Risk Preference</label>
+                            <select class="form-select" id="riskPreference">
+                                <option>Low</option>
+                                <option selected>Medium</option>
+                                <option>High</option>
+                            </select>
+                        </div>
+                        <button class="propose-btn" id="modalProposeBtn" onclick="proposeAction()">Open Long</button>
+                    </div>
+                </div>
+
+                <!-- Agent Analysis Panel -->
+                <div class="agent-analysis" id="agentAnalysis">
+                    <h3 style="font-size: 1.2em; margin-bottom: 20px; font-weight: 500;">Agent Analysis</h3>
+                    
+                    <div class="analysis-section">
+                        <div class="analysis-title">Market Analysis</div>
+                        <div class="analysis-item">
+                            <span class="analysis-label">Volatility:</span>
+                            <span class="analysis-value" id="volatility">HIGH</span>
+                        </div>
+                        <div class="analysis-item">
+                            <span class="analysis-label">Trend:</span>
+                            <span class="analysis-value" id="trend">UP</span>
+                        </div>
+                        <div class="analysis-item">
+                            <span class="analysis-label">Liquidity:</span>
+                            <span class="analysis-value" id="liquidity">LOW</span>
+                        </div>
+                        <div class="analysis-item">
+                            <span class="analysis-label">Oracle Confidence:</span>
+                            <span class="analysis-value" id="oracleConf">MEDIUM</span>
+                        </div>
+                    </div>
+                    
+                    <div class="analysis-section">
+                        <div class="analysis-title">Agent State</div>
+                        <div class="analysis-item">
+                            <span class="analysis-label">Mode:</span>
+                            <span class="analysis-value" id="agentMode">BALANCED</span>
+                        </div>
+                        <div class="analysis-item">
+                            <span class="analysis-label">Current Exposure:</span>
+                            <span class="analysis-value" id="currentExposure">41%</span>
+                        </div>
+                        <div class="analysis-item">
+                            <span class="analysis-label">Max Allowed Exposure:</span>
+                            <span class="analysis-value" id="maxExposure">55%</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Agent Decision Log -->
+                <div class="agent-log" id="agentLog"></div>
+
+                <!-- Decision Result -->
+                <div class="decision-result" id="decisionResult">
+                    <div class="decision-status" id="decisionStatus"></div>
+                    <div class="decision-details" id="decisionDetails"></div>
+                </div>
+            </div>
+        </div>
+
+
+        <!-- CTA section -->
+        <section class="cta-section scroll-animate" id="contact" style="position: relative;">
+            <!-- Ocean shell in CTA -->
+            <div class="ocean-element ocean-shell" style="bottom: 5%; right: 5%; width: 50px; height: 60px; animation-delay: 8s;">
+                <svg viewBox="0 0 50 60" xmlns="http://www.w3.org/2000/svg">
+                    <path class="shell-line" d="M 25 0 Q 35 10 35 25 Q 35 40 25 50 Q 15 40 15 25 Q 15 10 25 0" stroke-width="2"/>
+                    <path class="shell-line" d="M 25 0 Q 30 15 30 25 Q 30 35 25 50" stroke-width="1.5"/>
+                    <path class="shell-line" d="M 25 0 Q 20 15 20 25 Q 20 35 25 50" stroke-width="1.5"/>
+                </svg>
+            </div>
+            
+            <h2 class="cta-title">The autonomous future is here</h2>
+            <p class="cta-text">
+                Clawcolator building systematic foundations has the ultimate advantage: AI agents that actually work within strict safety guarantees.
+            </p>
+            <div>
+                <button class="btn" onclick="openStatusWindow()">View Status</button>
+                <button class="btn" onclick="openLiquidityProviderWindow()">Become Liquidity Provider</button>
+            </div>
+        </section>
+    </div>
+
+
+    <!-- Footer -->
+    <footer>
+        <div class="footer-content">
+            <div class="footer-brand">
+                <h3>Clawcolator</h3>
+                <p>Agent-first fork of Percolator where all market decisions are delegated to an autonomous OpenClaw agent, while the protocol strictly enforces financial invariants and system safety.</p>
+                <div class="footer-social">
+                    <a href="https://x.com/clawcolator" target="_blank" title="X">X</a>
+                    <a href="https://github.com/clawcolator" target="_blank" title="GitHub">GH</a>
+                </div>
+            </div>
+            
+            <div class="footer-links">
+                <h4>Project</h4>
+                <ul>
+                    <li><a href="#about">About</a></li>
+                    <li><a href="#architecture">Architecture</a></li>
+                    <li><a href="#market">Market</a></li>
+                    <li><a href="#contact">Contact</a></li>
+                </ul>
+            </div>
+            
+            <div class="footer-links">
+                <h4>Resources</h4>
+                <ul>
+                    <li><a href="https://github.com/clawcolator/clawcolator" target="_blank">GitHub</a></li>
+                    <li><a href="docs.html">Documentation</a></li>
+                </ul>
+            </div>
+            
+            <div class="footer-links">
+                <h4>Community</h4>
+                <ul>
+                    <li><a href="https://x.com/clawcolator" target="_blank">X</a></li>
+                    <li><a href="https://t.me/clawcolator" target="_blank">Telegram</a></li>
+                    <li><a href="https://github.com/clawcolator/clawcolator/discussions" target="_blank">Discussions</a></li>
+                </ul>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        // Fetch token data from DexScreener
+        async function fetchTokenData(tokenAddress) {
+            try {
+                const response = await fetch(`https://api.dexscreener.com/latest/dex/tokens/${tokenAddress}`);
+                if (!response.ok) {
+                    console.error(`API error for ${tokenAddress}: ${response.status}`);
+                    return null;
+                }
+                
+                const data = await response.json();
+                
+                if (data.pairs && data.pairs.length > 0) {
+                    // Find pair with SOL as quote token
+                    let pair = data.pairs.find(p => 
+                        p.quoteToken?.symbol === 'SOL' || 
+                        p.quoteToken?.address === 'So11111111111111111111111111111111111111112'
+                    );
+                    
+                    // Fallback to first pair if no SOL pair found
+                    if (!pair) {
+                        pair = data.pairs[0];
+                    }
+                    
+                    const price = parseFloat(pair.priceUsd || pair.priceNative || 0);
+                    
+                    if (price > 0) {
+                        return {
+                            price: price,
+                            priceChange24h: parseFloat(pair.priceChange?.h24 || pair.priceChange24h?.h24 || 0),
+                            mcap: price * 1e9 // Price * 1 billion
+                        };
+                    }
+                }
+                return null;
+            } catch (error) {
+                console.error('Error fetching token data for', tokenAddress, ':', error);
+                return null;
+            }
+        }
+        
+        // Token configuration
+        const tokenConfig = {
+            'GOYIM': { logo: 'goyim-logo.png', name: 'Goyim $GOYIM', address: '9S8edqWxoWz5LYLnxWUmWBJnePg35WfdYQp7HQkUpump', longExposure: '58%', shortExposure: '42%', bias: 'LONG', status: 'ACTIVE' },
+            'OPENCLAW': { logo: 'openclaw-logo.png', name: 'OPENCLAW $OPENCLAW', address: 'CxoaKHTGYAUkHwzK5dazVYuG3vvEXExrGznMwX1ipump', longExposure: '72%', shortExposure: '28%', bias: 'LONG', status: 'ACTIVE' },
+            'BIGTROUT': { logo: 'bigtrout-logo.png', name: '$BigTrout', address: 'EKwF2HD6X4rHHr4322EJeK9QBGkqhpHZQSanSUmWkecG', longExposure: '35%', shortExposure: '65%', bias: 'SHORT', status: 'ACTIVE' },
+            'BUTTCOIN': { logo: 'buttcoin-logo.png', name: 'Buttcoin $BUTTCOIN', address: 'Cm6fNnMk7NfzStP9CZpsQA2v3jjzbcYGAxdJySmHpump', longExposure: '68%', shortExposure: '32%', bias: 'LONG', status: 'ACTIVE' },
+            'PSYOPANIME': { logo: 'psyopanime-logo.png', name: 'PsyopAnime $PSYOPANIME', address: '2nP9yKQNSGQy851iyawDvBkzkK2R2aqKArQCKc2gpump', longExposure: '55%', shortExposure: '45%', bias: 'LONG', status: 'ACTIVE' }
+        };
+        
+        // Open status window
+        async function openStatusWindow() {
+            const window = document.getElementById('statusWindow');
+            const overlay = document.getElementById('statusOverlay');
+            const content = document.getElementById('statusContent');
+            
+            content.innerHTML = '';
+            
+            // Load status for each token
+            for (const [token, config] of Object.entries(tokenConfig)) {
+                const data = await fetchTokenData(config.address);
+                
+                const tokenItem = document.createElement('div');
+                tokenItem.className = 'status-token-item';
+                
+                const price = data ? formatPrice(data.price) : 'N/A';
+                const change = data ? ((data.priceChange24h >= 0 ? '+' : '') + data.priceChange24h.toFixed(2) + '%') : 'N/A';
+                const mcap = data && data.mcap > 0 ? '$' + formatNumber(data.mcap) : 'N/A';
+                const changeClass = data && data.priceChange24h >= 0 ? 'change-positive' : 'change-negative';
+                
+                tokenItem.innerHTML = `
+                    <div class="status-token-header">
+                        <img src="${config.logo}" alt="${config.name}" class="status-token-logo">
+                        <div class="status-token-name">${config.name}</div>
+                    </div>
+                    <div class="status-token-info">
+                        <div class="status-info-item">
+                            <span class="status-info-label">Price</span>
+                            <span class="status-info-value">${price}</span>
+                        </div>
+                        <div class="status-info-item">
+                            <span class="status-info-label">24h Change</span>
+                            <span class="status-info-value ${changeClass}">${change}</span>
+                        </div>
+                        <div class="status-info-item">
+                            <span class="status-info-label">Market Cap</span>
+                            <span class="status-info-value">${mcap}</span>
+                        </div>
+                        <div class="status-info-item">
+                            <span class="status-info-label">Status</span>
+                            <span class="status-info-value status-active">${config.status}</span>
+                        </div>
+                        <div class="status-info-item">
+                            <span class="status-info-label">Long Exposure</span>
+                            <span class="status-info-value">${config.longExposure}</span>
+                        </div>
+                        <div class="status-info-item">
+                            <span class="status-info-label">Short Exposure</span>
+                            <span class="status-info-value">${config.shortExposure}</span>
+                        </div>
+                        <div class="status-info-item">
+                            <span class="status-info-label">Agent Bias</span>
+                            <span class="status-info-value bias-${config.bias.toLowerCase()}">${config.bias}</span>
+                        </div>
+                        <div class="status-info-item">
+                            <span class="status-info-label">Contract</span>
+                            <div class="contract-actions" style="display: flex; align-items: center; gap: 8px;">
+                                <span class="status-info-value" style="font-size: 0.75em; word-break: break-all;">${config.address.substring(0, 8)}...${config.address.substring(config.address.length - 8)}</span>
+                                <button class="copy-ca-btn" onclick="copyContractAddress('${config.address}', this)">Copy CA</button>
+                                <a href="https://gmgn.ai/sol/token/${config.address}" target="_blank" class="gmgn-link">
+                                    <img src="gmgn-logo.svg" alt="GMGN" class="gmgn-logo">
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                
+                content.appendChild(tokenItem);
+            }
+            
+            window.classList.add('active');
+            overlay.classList.add('active');
+        }
+        
+        // Close status window
+        function closeStatusWindow() {
+            const window = document.getElementById('statusWindow');
+            const overlay = document.getElementById('statusOverlay');
+            
+            window.classList.remove('active');
+            overlay.classList.remove('active');
+        }
+        
+        // Open liquidity provider window
+        function openLiquidityProviderWindow() {
+            const window = document.getElementById('lpWindow');
+            const overlay = document.getElementById('lpOverlay');
+            
+            if (window && overlay) {
+                window.classList.add('active');
+                overlay.classList.add('active');
+            }
+        }
+        
+        // Close liquidity provider window
+        function closeLiquidityProviderWindow() {
+            const window = document.getElementById('lpWindow');
+            const overlay = document.getElementById('lpOverlay');
+            
+            if (window && overlay) {
+                window.classList.remove('active');
+                overlay.classList.remove('active');
+            }
+        }
+        
+        // Close LP window on overlay click
+        document.addEventListener('DOMContentLoaded', function() {
+            const lpOverlay = document.getElementById('lpOverlay');
+            if (lpOverlay) {
+                lpOverlay.addEventListener('click', closeLiquidityProviderWindow);
+            }
+        });
+        
+        // Copy contract address
+        function copyContractAddress(address, button) {
+            navigator.clipboard.writeText(address).then(() => {
+                const originalText = button.textContent;
+                button.textContent = 'Copied!';
+                button.classList.add('copied');
+                setTimeout(() => {
+                    button.textContent = originalText;
+                    button.classList.remove('copied');
+                }, 2000);
+            }).catch(err => {
+                console.error('Failed to copy:', err);
+            });
+        }
+        
+        // Close status window on overlay click
+        document.addEventListener('DOMContentLoaded', function() {
+            const statusOverlay = document.getElementById('statusOverlay');
+            if (statusOverlay) {
+                statusOverlay.addEventListener('click', closeStatusWindow);
+            }
+        });
+        
+        // Loading Screen Animation
+        (function() {
+            const loadingScreen = document.getElementById('loadingScreen');
+            const loadingBackground = document.getElementById('loadingBackground');
+            const loadingPercent = document.getElementById('loadingPercent');
+            
+            if (!loadingScreen || !loadingBackground || !loadingPercent) return;
+            
+            let progress = 0;
+            const duration = 2500; // 2.5 seconds total
+            const startTime = performance.now();
+            
+            function updateLoading(currentTime) {
+                const elapsed = currentTime - startTime;
+                progress = Math.min((elapsed / duration) * 100, 100);
+                
+                // Update percentage
+                loadingPercent.textContent = Math.floor(progress) + '%';
+                
+                // Update background width (purple fill) - smooth animation
+                loadingBackground.style.width = progress + '%';
+                
+                if (progress < 100) {
+                    requestAnimationFrame(updateLoading);
+                } else {
+                    // Hide loading screen after completion
+                    setTimeout(() => {
+                        loadingScreen.classList.add('hidden');
+                        setTimeout(() => {
+                            loadingScreen.style.display = 'none';
+                        }, 500);
+                    }, 400);
+                }
+            }
+            
+            // Start animation when page loads
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', () => {
+                    requestAnimationFrame(updateLoading);
+                });
+            } else {
+                requestAnimationFrame(updateLoading);
+            }
+        })();
+
+        // Format number with commas
+        function formatNumber(num) {
+            if (num >= 1e9) return (num / 1e9).toFixed(2) + 'B';
+            if (num >= 1e6) return (num / 1e6).toFixed(2) + 'M';
+            if (num >= 1e3) return (num / 1e3).toFixed(2) + 'K';
+            return num.toFixed(4);
+        }
+
+        // Format price
+        function formatPrice(price) {
+            if (price < 0.0001) return '$' + price.toExponential(2);
+            if (price < 1) return '$' + price.toFixed(6);
+            return '$' + price.toFixed(4);
+        }
+
+        // Update token row with real data
+        async function updateTokenRow(row) {
+            const address = row.getAttribute('data-address');
+            if (!address) return;
+
+            const priceCell = row.querySelector('[data-field="price"]');
+            const changeCell = row.querySelector('[data-field="change24h"]');
+            const mcapCell = row.querySelector('[data-field="mcap"]');
+
+            try {
+                const data = await fetchTokenData(address);
+                
+                if (data && data.price > 0) {
+                    // Update price directly (without animation to avoid conflicts)
+                    if (priceCell) {
+                        priceCell.textContent = formatPrice(data.price);
+                    }
+
+                    // Update 24h change
+                    if (changeCell) {
+                        const change = data.priceChange24h;
+                        const changePercent = change.toFixed(2) + '%';
+                        changeCell.textContent = (change >= 0 ? '+' : '') + changePercent;
+                        changeCell.className = 'change-24h ' + (change >= 0 ? 'change-positive' : 'change-negative');
+                    }
+
+                    // Update market cap
+                    if (mcapCell && data.mcap > 0) {
+                        mcapCell.textContent = '$' + formatNumber(data.mcap);
+                    } else if (mcapCell) {
+                        mcapCell.textContent = 'N/A';
+                    }
+                } else {
+                    // Fallback if data fetch fails or no price
+                    if (priceCell) priceCell.textContent = 'N/A';
+                    if (changeCell) changeCell.textContent = 'N/A';
+                    if (mcapCell) mcapCell.textContent = 'N/A';
+                }
+            } catch (error) {
+                console.error('Error updating token row:', error);
+                if (priceCell) priceCell.textContent = 'N/A';
+                if (changeCell) changeCell.textContent = 'N/A';
+                if (mcapCell) mcapCell.textContent = 'N/A';
+            }
+        }
+
+        // Load token data for all rows
+        async function loadAllTokenData() {
+            const tokenRows = document.querySelectorAll('.token-row[data-address]');
+            
+            // Load data for each token sequentially with delay to avoid rate limiting
+            for (let i = 0; i < tokenRows.length; i++) {
+                await new Promise(resolve => {
+                    setTimeout(async () => {
+                        await updateTokenRow(tokenRows[i]);
+                        resolve();
+                    }, i * 400); // 400ms delay between requests
+                });
+            }
+        }
+
+        // Animate numbers function
+        function animateNumber(element, targetValue, duration = 2000, suffix = '') {
+            const startValue = 0;
+            const startTime = performance.now();
+            const isPercentage = suffix === '%';
+            const isDecimal = targetValue.toString().includes('.');
+            
+            function update(currentTime) {
+                const elapsed = currentTime - startTime;
+                const progress = Math.min(elapsed / duration, 1);
+                
+                // Easing function (ease-out)
+                const easeOut = 1 - Math.pow(1 - progress, 3);
+                
+                let currentValue;
+                if (isPercentage) {
+                    currentValue = startValue + (targetValue - startValue) * easeOut;
+                    element.textContent = currentValue.toFixed(0) + suffix;
+                } else if (isDecimal) {
+                    currentValue = startValue + (targetValue - startValue) * easeOut;
+                    element.textContent = currentValue.toFixed(2) + suffix;
+                } else {
+                    currentValue = Math.floor(startValue + (targetValue - startValue) * easeOut);
+                    element.textContent = currentValue.toLocaleString() + suffix;
+                }
+                
+                if (progress < 1) {
+                    requestAnimationFrame(update);
+                } else {
+                    // Ensure final value is exact
+                    if (isPercentage) {
+                        element.textContent = targetValue + suffix;
+                    } else if (isDecimal) {
+                        element.textContent = targetValue.toFixed(2) + suffix;
+                    } else {
+                        element.textContent = targetValue.toLocaleString() + suffix;
+                    }
+                }
+            }
+            
+            requestAnimationFrame(update);
+        }
+        
+        // Animate all numbers on page
+        function animateAllNumbers() {
+            // Animate stat numbers
+            document.querySelectorAll('.stat-number').forEach(element => {
+                // Check if has data-value attribute
+                if (element.hasAttribute('data-value')) {
+                    const value = parseFloat(element.getAttribute('data-value'));
+                    const suffix = element.textContent.includes('%') ? '%' : '';
+                    
+                    const observer = new IntersectionObserver((entries) => {
+                        entries.forEach(entry => {
+                            if (entry.isIntersecting && !entry.target.hasAttribute('data-animated')) {
+                                entry.target.setAttribute('data-animated', 'true');
+                                animateNumber(entry.target, value, 2000, suffix);
+                                observer.unobserve(entry.target);
+                            }
+                        });
+                    }, { threshold: 0.5 });
+                    
+                    observer.observe(element);
+                } else {
+                    // Fallback for elements without data-value
+                    const text = element.textContent.trim();
+                    const match = text.match(/([\d.]+)(%|K|M|B|ms)?/);
+                    if (match) {
+                        let value = parseFloat(match[1]);
+                        const suffix = match[2] || '';
+                        
+                        const observer = new IntersectionObserver((entries) => {
+                            entries.forEach(entry => {
+                                if (entry.isIntersecting && !entry.target.hasAttribute('data-animated')) {
+                                    entry.target.setAttribute('data-animated', 'true');
+                                    animateNumber(entry.target, value, 2000, suffix);
+                                    observer.unobserve(entry.target);
+                                }
+                            });
+                        }, { threshold: 0.5 });
+                        
+                        observer.observe(element);
+                    }
+                }
+            });
+            
+            // Animate price numbers
+            document.querySelectorAll('.price, [data-field="price"]').forEach(element => {
+                if (element.textContent && element.textContent !== 'Loading...' && !element.textContent.includes('$')) {
+                    const text = element.textContent.trim();
+                    const match = text.match(/\$?([\d.]+)/);
+                    if (match) {
+                        const value = parseFloat(match[1]);
+                        const observer = new IntersectionObserver((entries) => {
+                            entries.forEach(entry => {
+                                if (entry.isIntersecting && !entry.target.hasAttribute('data-animated')) {
+                                    entry.target.setAttribute('data-animated', 'true');
+                                    const originalText = entry.target.textContent;
+                                    animateNumber(entry.target, value, 1500, originalText.includes('$') ? '' : '');
+                                    observer.unobserve(entry.target);
+                                }
+                            });
+                        }, { threshold: 0.5 });
+                        observer.observe(element);
+                    }
+                }
+            });
+            
+            // Animate percentage numbers
+            document.querySelectorAll('[data-field="longExposure"], [data-field="shortExposure"], .change-24h').forEach(element => {
+                if (element.textContent && element.textContent !== 'Loading...') {
+                    const text = element.textContent.trim();
+                    const match = text.match(/([\d.]+)%/);
+                    if (match) {
+                        const value = parseFloat(match[1]);
+                        const observer = new IntersectionObserver((entries) => {
+                            entries.forEach(entry => {
+                                if (entry.isIntersecting && !entry.target.hasAttribute('data-animated')) {
+                                    entry.target.setAttribute('data-animated', 'true');
+                                    const sign = text.includes('+') ? '+' : (text.includes('-') ? '-' : '');
+                                    animateNumber(entry.target, value, 1500, '%');
+                                    if (sign) {
+                                        entry.target.textContent = sign + entry.target.textContent;
+                                    }
+                                    observer.unobserve(entry.target);
+                                }
+                            });
+                        }, { threshold: 0.5 });
+                        observer.observe(element);
+                    }
+                }
+            });
+        }
+        
+        // Additional dynamic animations
+        document.addEventListener('DOMContentLoaded', function() {
+            // Load token data from DexScreener
+            loadAllTokenData();
+            
+            // Refresh data every 30 seconds
+            setInterval(loadAllTokenData, 30000);
+            
+            // Setup status overlay click handler
+            const statusOverlay = document.getElementById('statusOverlay');
+            if (statusOverlay) {
+                statusOverlay.addEventListener('click', closeStatusWindow);
+            }
+            
+            // Animate all numbers
+            setTimeout(() => {
+                animateAllNumbers();
+            }, 500);
+            
+            // Animate stats on scroll
+            const observerOptions = {
+                threshold: 0.5,
+                rootMargin: '0px'
+            };
+
+            const observer = new IntersectionObserver(function(entries) {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        entry.target.style.animation = 'countUp 2s ease-out';
+                    }
+                });
+            }, observerOptions);
+
+            document.querySelectorAll('.stat-number').forEach(stat => {
+                observer.observe(stat);
+            });
+
+            // Random line animations
+            function createRandomLine() {
+                const line = document.createElement('div');
+                line.className = 'floating-element';
+                line.style.left = Math.random() * 100 + '%';
+                line.style.top = Math.random() * 100 + '%';
+                line.style.animationDelay = Math.random() * 2 + 's';
+                document.body.appendChild(line);
+                
+                setTimeout(() => {
+                    line.remove();
+                }, 4000);
+            }
+
+            // Create random lines periodically
+            setInterval(createRandomLine, 3000);
+        });
+
+        // Generate candlestick data for a token
+        function generateCandleData(token) {
+            const candles = [];
+            const basePrice = {
+                'GOYIM': 0.0004,
+                'OPENCLAW': 0.0008,
+                'BIGTROUT': 0.0012,
+                'BUTTCOIN': 0.0003,
+                'PSYOPANIME': 0.0007
+            }[token] || 0.001;
+            
+            const volatility = {
+                'GOYIM': 0.15,
+                'OPENCLAW': 0.12,
+                'BIGTROUT': 0.20,
+                'BUTTCOIN': 0.18,
+                'PSYOPANIME': 0.10
+            }[token] || 0.15;
+            
+            let currentPrice = basePrice;
+            const candleWidth = 18;
+            const spacing = 20;
+            const chartHeight = 250;
+            const padding = 20;
+            const priceRange = basePrice * volatility * 2;
+            const minPrice = basePrice - priceRange;
+            const maxPrice = basePrice + priceRange;
+            
+            for (let i = 0; i < 50; i++) {
+                const x = padding + i * spacing;
+                const change = (Math.random() - 0.5) * volatility * 2;
+                const open = currentPrice;
+                const close = Math.max(minPrice, Math.min(maxPrice, open * (1 + change)));
+                const high = Math.max(open, close) * (1 + Math.random() * 0.05);
+                const low = Math.min(open, close) * (1 - Math.random() * 0.05);
+                
+                const isUp = close >= open;
+                
+                // Convert prices to Y coordinates (inverted: lower price = higher Y)
+                const openY = chartHeight - padding - ((open - minPrice) / (maxPrice - minPrice)) * (chartHeight - padding * 2);
+                const closeY = chartHeight - padding - ((close - minPrice) / (maxPrice - minPrice)) * (chartHeight - padding * 2);
+                const highY = chartHeight - padding - ((high - minPrice) / (maxPrice - minPrice)) * (chartHeight - padding * 2);
+                const lowY = chartHeight - padding - ((low - minPrice) / (maxPrice - minPrice)) * (chartHeight - padding * 2);
+                
+                candles.push({
+                    x: x,
+                    open: openY,
+                    close: closeY,
+                    high: highY,
+                    low: lowY,
+                    isUp: isUp
+                });
+                
+                currentPrice = close;
+            }
+            
+            return candles;
+        }
+        
+        // Render candlesticks
+        function renderCandles(container, candles) {
+            container.innerHTML = '';
+            
+            candles.forEach(candle => {
+                const wick = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                wick.setAttribute('x1', candle.x);
+                wick.setAttribute('y1', candle.high);
+                wick.setAttribute('x2', candle.x);
+                wick.setAttribute('y2', candle.low);
+                wick.setAttribute('stroke', 'var(--line-black)');
+                wick.setAttribute('stroke-width', '1.5');
+                container.appendChild(wick);
+                
+                const body = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+                const bodyTop = Math.min(candle.open, candle.close);
+                const bodyBottom = Math.max(candle.open, candle.close);
+                const bodyHeight = Math.max(2, bodyBottom - bodyTop);
+                
+                body.setAttribute('x', candle.x - 6);
+                body.setAttribute('y', bodyTop);
+                body.setAttribute('width', '12');
+                body.setAttribute('height', bodyHeight);
+                body.setAttribute('fill', candle.isUp ? '#00aa00' : '#aa0000');
+                body.setAttribute('stroke', 'var(--line-black)');
+                body.setAttribute('stroke-width', '1.5');
+                container.appendChild(body);
+            });
+        }
+        
+        // Token window functions
+        function openTokenWindow(token, displayName) {
+            const window = document.getElementById('tokenWindow');
+            const overlay = document.getElementById('overlay');
+            const title = document.getElementById('windowTitle');
+            const chartContainer = document.getElementById('candlesContainer');
+            const contractAddressEl = document.getElementById('tokenContractAddress');
+            const gmgnLink = document.getElementById('tokenGmgnLink');
+            
+            const tokenName = displayName || token;
+            title.textContent = tokenName + ' / SOL — Agent-Controlled Market';
+            
+            // Find token row to get contract address
+            const tokenRow = document.querySelector(`.token-row[data-token="${token}"]`);
+            if (tokenRow) {
+                const address = tokenRow.getAttribute('data-address');
+                if (address && contractAddressEl) {
+                    contractAddressEl.textContent = address;
+                    if (gmgnLink) {
+                        gmgnLink.href = `https://gmgn.ai/sol/token/${address}`;
+                    }
+                }
+            }
+            
+            // Generate and render chart for this token
+            if (chartContainer) {
+                const candles = generateCandleData(token);
+                renderCandles(chartContainer, candles);
+            }
+            
+            // Set "Open Position" link to token page
+            const openPositionLink = document.getElementById('openPositionLink');
+            if (openPositionLink) {
+                openPositionLink.href = `token.html?token=${token}`;
+            }
+            
+            document.getElementById('tokenWindow').dataset.currentToken = token;
+            const modalProposeBtn = document.getElementById('modalProposeBtn');
+            if (modalProposeBtn) {
+                modalProposeBtn.textContent = 'Open Long';
+            }
+            if (typeof selectedAction !== 'undefined' && selectedAction === 'short') {
+                if (modalProposeBtn) modalProposeBtn.textContent = 'Open Short';
+            }
+            
+            window.classList.add('active');
+            overlay.classList.add('active');
+        }
+        
+        // Copy token contract address
+        function copyTokenContractAddress() {
+            const addressEl = document.getElementById('tokenContractAddress');
+            const button = document.getElementById('tokenCopyBtn');
+            if (addressEl && addressEl.textContent) {
+                navigator.clipboard.writeText(addressEl.textContent).then(() => {
+                    const originalText = button.textContent;
+                    button.textContent = 'Copied!';
+                    button.classList.add('copied');
+                    setTimeout(() => {
+                        button.textContent = originalText;
+                        button.classList.remove('copied');
+                    }, 2000);
+                }).catch(err => {
+                    console.error('Failed to copy:', err);
+                });
+            }
+        }
+
+        function closeTokenWindow() {
+            const window = document.getElementById('tokenWindow');
+            const overlay = document.getElementById('overlay');
+            const analysis = document.getElementById('agentAnalysis');
+            const log = document.getElementById('agentLog');
+            const result = document.getElementById('decisionResult');
+            
+            window.classList.remove('active');
+            overlay.classList.remove('active');
+            analysis.classList.remove('active');
+            log.classList.remove('active');
+            result.classList.remove('active');
+            log.innerHTML = '';
+        }
+
+        // Token row click handlers
+        document.querySelectorAll('.token-row').forEach(row => {
+            row.addEventListener('click', function() {
+                const token = this.getAttribute('data-token');
+                const tokenNameElement = this.querySelector('.token-name span');
+                const tokenDisplayName = tokenNameElement ? tokenNameElement.textContent.trim() : token;
+                openTokenWindow(token, tokenDisplayName);
+            });
+        });
+
+        // Overlay click to close
+        document.getElementById('overlay').addEventListener('click', closeTokenWindow);
+
+        // Action selection
+        let selectedAction = 'long';
+        function selectAction(action) {
+            selectedAction = action;
+            document.getElementById('btnLong').classList.toggle('active', action === 'long');
+            document.getElementById('btnShort').classList.toggle('active', action === 'short');
+            const modalProposeBtn = document.getElementById('modalProposeBtn');
+            if (modalProposeBtn) {
+                modalProposeBtn.textContent = action === 'long' ? 'Open Long' : 'Open Short';
+            }
+        }
+
+        // Leverage slider
+        function updateLeverage(value) {
+            document.getElementById('leverageValue').textContent = value + 'x';
+        }
+
+        // Propose action - redirect to token detail page with form data
+        function proposeAction() {
+            const tokenSymbol = document.getElementById('tokenWindow').dataset.currentToken || 'GOYIM';
+            const positionSize = document.getElementById('positionSize').value || '1000';
+            const leverage = document.getElementById('leverageSlider').value || '5';
+            const risk = document.getElementById('riskPreference').value || 'Medium';
+            
+            closeTokenWindow();
+            window.location.href = `token.html?token=${tokenSymbol}&action=${selectedAction}&size=${positionSize}&leverage=${leverage}&risk=${risk}`;
+        }
+
+        function showDecisionResult(action, size, leverage) {
+            const result = document.getElementById('decisionResult');
+            const status = document.getElementById('decisionStatus');
+            const details = document.getElementById('decisionDetails');
+            
+            // Random decision for demo
+            const decisions = ['ACCEPTED', 'REJECTED', 'MODIFIED'];
+            const decision = decisions[Math.floor(Math.random() * decisions.length)];
+            
+            result.classList.add('active');
+            
+            if (decision === 'ACCEPTED') {
+                status.textContent = '✅ ACCEPTED';
+                status.className = 'decision-status decision-accepted';
+                details.textContent = 'Your ' + action.toUpperCase() + ' proposal has been accepted. Position will be opened.';
+            } else if (decision === 'REJECTED') {
+                status.textContent = '❌ REJECTED';
+                status.className = 'decision-status decision-rejected';
+                details.textContent = 'Your proposal was rejected due to risk limits or market conditions.';
+            } else {
+                status.textContent = '⚠️ MODIFIED';
+                status.className = 'decision-status decision-modified';
+                const newLeverage = Math.max(1, parseInt(leverage) - 1);
+                const newSize = Math.floor(parseInt(size) * 0.8);
+                details.innerHTML = 'Your proposal was modified:<br>Leverage: ' + leverage + 'x → ' + newLeverage + 'x<br>Size: ' + size + ' → ' + newSize;
+            }
+        }
+        
+        // Animate text letter by letter
+        function animateText(element, text, delay = 50) {
+            element.textContent = '';
+            let index = 0;
+            
+            function addLetter() {
+                if (index < text.length) {
+                    element.textContent += text[index];
+                    index++;
+                    setTimeout(addLetter, delay);
+                }
+            }
+            
+            addLetter();
+        }
+        
+        // Loading Screen Animation
+        (function() {
+            const loadingScreen = document.getElementById('loadingScreen');
+            const loadingBackground = document.getElementById('loadingBackground');
+            const loadingLineFill = document.getElementById('loadingLineFill');
+            const loadingPercent = document.getElementById('loadingPercent');
+            const loadingText = document.querySelector('.loading-text');
+            
+            if (!loadingScreen || !loadingBackground || !loadingLineFill || !loadingPercent || !loadingText) return;
+            
+            // Animate "Clawcolator" text letter by letter
+            animateText(loadingText, 'Clawcolator', 80);
+            
+            // Animate percentage character by character
+            let percentText = '';
+            let percentTarget = '';
+            let percentCharIndex = 0;
+            let lastPercentValue = -1;
+            
+            function animatePercentChar() {
+                if (percentCharIndex < percentTarget.length) {
+                    percentText += percentTarget[percentCharIndex];
+                    loadingPercent.textContent = percentText;
+                    percentCharIndex++;
+                    setTimeout(animatePercentChar, 80);
+                }
+            }
+            
+            let progress = 0;
+            const duration = 2500; // 2.5 seconds total
+            const startTime = performance.now();
+            
+            function updateLoading(currentTime) {
+                const elapsed = currentTime - startTime;
+                progress = Math.min((elapsed / duration) * 100, 100);
+                
+                // Update percentage - animate character by character when value changes
+                const currentPercent = Math.floor(progress);
+                if (currentPercent !== lastPercentValue) {
+                    const newTarget = currentPercent + '%';
+                    if (newTarget !== percentTarget) {
+                        percentTarget = newTarget;
+                        percentText = '';
+                        percentCharIndex = 0;
+                        animatePercentChar();
+                    }
+                    lastPercentValue = currentPercent;
+                }
+                
+                // Update background width (purple fill) - smooth animation
+                loadingBackground.style.width = progress + '%';
+                
+                // Update line fill width
+                loadingLineFill.style.width = progress + '%';
+                
+                if (progress < 100) {
+                    requestAnimationFrame(updateLoading);
+                } else {
+                    // Ensure final percentage is shown
+                    loadingPercent.textContent = '100%';
+                    
+                    // Hide loading screen after completion
+                    setTimeout(() => {
+                        loadingScreen.classList.add('hidden');
+                        setTimeout(() => {
+                            loadingScreen.style.display = 'none';
+                        }, 500);
+                    }, 400);
+                }
+            }
+            
+            // Start animations when page loads
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', () => {
+                    setTimeout(() => {
+                        requestAnimationFrame(updateLoading);
+                    }, 800); // Wait for text animation to start
+                });
+            } else {
+                setTimeout(() => {
+                    requestAnimationFrame(updateLoading);
+                }, 800); // Wait for text animation to start
+            }
+        })();
+        
+        // Scroll animations - элементы появляются при прокрутке вниз и исчезают при прокрутке вверх
+        (function() {
+            const observerOptions = {
+                threshold: 0.15,
+                rootMargin: '0px 0px -80px 0px'
+            };
+            
+            let lastScrollY = window.scrollY;
+            let scrollDirection = 'down';
+            
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    const element = entry.target;
+                    const rect = entry.boundingClientRect;
+                    
+                    if (entry.isIntersecting) {
+                        // Элемент виден - показываем
+                        element.classList.add('visible');
+                        element.classList.remove('hidden');
+                    } else {
+                        // Элемент не виден - проверяем направление скролла
+                        if (scrollDirection === 'down' && rect.top < -100) {
+                            // Скроллим вниз, элемент ушёл вверх - скрываем
+                            element.classList.add('hidden');
+                            element.classList.remove('visible');
+                        } else if (scrollDirection === 'up' && rect.bottom > window.innerHeight + 100) {
+                            // Скроллим вверх, элемент ушёл вниз - скрываем
+                            element.classList.add('hidden');
+                            element.classList.remove('visible');
+                        }
+                    }
+                });
+            }, observerOptions);
+            
+            // Отслеживаем направление скролла
+            window.addEventListener('scroll', () => {
+                const currentScrollY = window.scrollY;
+                scrollDirection = currentScrollY > lastScrollY ? 'down' : 'up';
+                lastScrollY = currentScrollY;
+            }, { passive: true });
+            
+            // Находим все элементы с классом scroll-animate после загрузки
+            function initScrollAnimations() {
+                const elements = document.querySelectorAll('.scroll-animate');
+                elements.forEach(el => {
+                    observer.observe(el);
+                });
+            }
+            
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', initScrollAnimations);
+            } else {
+                initScrollAnimations();
+            }
+        })();
+    </script>
+</body>
+</html>

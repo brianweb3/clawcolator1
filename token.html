@@ -1,0 +1,1570 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Token Detail - Clawcolator</title>
+    <link rel="icon" type="image/png" href="favicon.png">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap');
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        :root {
+            --bg-gray: #f5f5f5;
+            --line-black: #000000;
+            --text-gray: #333333;
+            --accent-orange: #654194;
+        }
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--bg-gray);
+            color: var(--line-black);
+            padding: 40px;
+        }
+        
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(24px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        @keyframes fadeOutDown {
+            from {
+                opacity: 1;
+                transform: translateY(0);
+            }
+            to {
+                opacity: 0;
+                transform: translateY(24px);
+            }
+        }
+        
+        .scroll-animate {
+            opacity: 0;
+            transform: translateY(24px);
+            transition: opacity 0.6s ease-out, transform 0.6s ease-out;
+        }
+        
+        .scroll-animate.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        
+        .scroll-animate.hidden {
+            opacity: 0;
+            transform: translateY(24px);
+            transition: opacity 0.4s ease-out, transform 0.4s ease-out;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        
+        .header {
+            margin-bottom: 40px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 16px;
+        }
+        
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        .back-btn,
+        .wallet-widget .connect-btn {
+            padding: 10px 20px;
+            border: 2px solid var(--line-black);
+            font-family: inherit;
+            font-size: 0.9em;
+            font-weight: 500;
+            transition: all 0.2s;
+            box-sizing: border-box;
+            height: 44px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .back-btn {
+            background: transparent;
+            color: var(--line-black);
+            text-decoration: none;
+        }
+        .back-btn:hover {
+            background: var(--line-black);
+            color: #fff;
+        }
+        .wallet-widget .connect-btn {
+            background: #fff;
+            color: var(--line-black);
+            cursor: pointer;
+        }
+        .wallet-widget .connect-btn:hover {
+            background: var(--line-black);
+            color: #fff;
+        }
+        
+        .wallet-widget {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .wallet-connected {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 12px;
+            border: 2px solid var(--line-black);
+            background: #fff;
+            font-size: 0.85em;
+            box-sizing: border-box;
+            height: 44px;
+        }
+        .wallet-connected-info { line-height: 1.3; }
+        .wallet-address { font-weight: 600; color: var(--line-black); }
+        .wallet-network { color: var(--text-gray); font-size: 0.9em; }
+        .wallet-widget .disconnect-btn {
+            padding: 10px 20px;
+            border: 2px solid var(--line-black);
+            background: transparent;
+            color: var(--line-black);
+            font-family: inherit;
+            font-size: 0.9em;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            height: 44px;
+            box-sizing: border-box;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .wallet-widget .disconnect-btn:hover {
+            background: var(--line-black);
+            color: #fff;
+        }
+        
+        h1 {
+            font-size: 2.5em;
+            font-weight: 300;
+            letter-spacing: -1px;
+        }
+        
+        .token-info {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 24px;
+            margin-bottom: 40px;
+        }
+        .token-info .info-card {
+            transition: opacity 0.6s ease-out, transform 0.6s ease-out;
+        }
+        @media (max-width: 1100px) {
+            .token-info { grid-template-columns: 1fr 1fr; }
+        }
+        @media (max-width: 700px) {
+            .token-info { grid-template-columns: 1fr; }
+            .wallet-widget { position: static; }
+        }
+        
+        .info-card {
+            border: 2px solid var(--line-black);
+            padding: 25px;
+            background: #ffffff;
+        }
+        
+        .info-card h3 {
+            font-size: 1em;
+            font-weight: 600;
+            margin-bottom: 15px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .info-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid rgba(0,0,0,0.1);
+        }
+        
+        .info-item:last-child {
+            border-bottom: none;
+        }
+        
+        .info-label {
+            color: var(--text-gray);
+            font-size: 0.9em;
+        }
+        
+        .info-value {
+            font-weight: 600;
+            color: var(--line-black);
+        }
+        
+        .price-chart {
+            border: 2px solid var(--line-black);
+            padding: 20px;
+            margin-bottom: 40px;
+            height: 250px;
+            background: #ffffff;
+        }
+        
+        .chart-container {
+            position: relative;
+            width: 100%;
+            height: 100%;
+        }
+        
+        .chart-svg {
+            width: 100%;
+            height: 100%;
+        }
+        
+        .chart-grid-line {
+            stroke: var(--line-black);
+            stroke-width: 1;
+            stroke-dasharray: 4, 4;
+            opacity: 0.2;
+        }
+        
+        .chart-candle {
+            stroke: var(--line-black);
+            stroke-width: 2;
+        }
+        
+        .candle-up {
+            fill: #00aa00;
+            stroke: #00aa00;
+        }
+        
+        .candle-down {
+            fill: #aa0000;
+            stroke: #aa0000;
+        }
+        
+        .candle-wick {
+            stroke-width: 1.5;
+        }
+        
+        .chart-line {
+            stroke: var(--line-black);
+            stroke-width: 2;
+            fill: none;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
+        
+        .chart-area {
+            fill: var(--line-black);
+            opacity: 0.1;
+        }
+        
+        .volume-bar {
+            fill: var(--line-black);
+            opacity: 0.3;
+        }
+        
+        .chart-marker {
+            fill: var(--line-black);
+            stroke: var(--line-black);
+            stroke-width: 1;
+        }
+        
+        .marker-accepted {
+            fill: #00aa00;
+        }
+        
+        .marker-rejected {
+            fill: #aa0000;
+        }
+        
+        .marker-agent {
+            fill: var(--accent-orange);
+        }
+        
+        .chart-label {
+            font-family: 'Inter', sans-serif;
+            font-size: 10px;
+            fill: var(--text-gray);
+        }
+        
+        .ma-line {
+            stroke-width: 1.5;
+            stroke-dasharray: 5, 5;
+        }
+        
+        .ma-fast {
+            stroke: #0066ff;
+        }
+        
+        .ma-slow {
+            stroke: #654194;
+        }
+        
+        .agent-section {
+            border: 2px solid var(--line-black);
+            padding: 30px;
+            margin-bottom: 40px;
+            background: #ffffff;
+        }
+        
+        .agent-section h2 {
+            font-size: 1.5em;
+            font-weight: 300;
+            margin-bottom: 25px;
+            letter-spacing: -0.5px;
+            color: var(--line-black);
+        }
+        
+        .proposal-info {
+            border: 2px solid var(--line-black);
+            padding: 20px;
+            margin-bottom: 24px;
+            background: #ffffff;
+        }
+        
+        .proposal-info h3 {
+            font-size: 0.85em;
+            font-weight: 600;
+            margin-bottom: 15px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-gray);
+        }
+        
+        .proposal-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px 24px;
+        }
+        
+        .proposal-grid .info-item {
+            border-bottom: 1px solid rgba(0,0,0,0.08);
+        }
+        
+        .agent-log {
+            border: 2px solid var(--line-black);
+            border-left: 4px solid var(--accent-orange);
+            padding: 20px 24px;
+            margin: 24px 0;
+            background: var(--bg-gray);
+            color: var(--line-black);
+            font-family: 'Inter', sans-serif;
+            font-size: 0.9em;
+            font-weight: 400;
+            line-height: 1.9;
+            max-height: 320px;
+            overflow-y: auto;
+        }
+        
+        .agent-log::-webkit-scrollbar {
+            width: 6px;
+        }
+        .agent-log::-webkit-scrollbar-track {
+            background: rgba(0,0,0,0.06);
+        }
+        .agent-log::-webkit-scrollbar-thumb {
+            background: var(--line-black);
+            border-radius: 3px;
+        }
+        
+        .log-entry {
+            margin: 4px 0;
+            animation: logAppear 0.3s ease-out;
+        }
+        
+        @keyframes logAppear {
+            from {
+                opacity: 0;
+                transform: translateY(2px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .log-time {
+            color: var(--text-gray);
+            font-weight: 400;
+        }
+        
+        .decision-result {
+            border: 2px solid var(--line-black);
+            padding: 32px 40px;
+            margin: 24px 0 0;
+            text-align: center;
+            background: #ffffff;
+        }
+        
+        .decision-status {
+            font-size: 1.75em;
+            font-weight: 500;
+            margin: 0 0 16px;
+            letter-spacing: -0.5px;
+        }
+        
+        .decision-accepted {
+            color: #1a5c1a;
+        }
+        
+        .decision-rejected {
+            color: #8b2a2a;
+        }
+        
+        .decision-modified {
+            color: var(--accent-orange);
+        }
+        
+        .decision-result .decision-details {
+            margin-top: 12px;
+        }
+        
+        .agent-copy-line {
+            font-size: 0.85em;
+            color: var(--text-gray);
+            margin-bottom: 20px;
+            line-height: 1.5;
+            font-style: italic;
+        }
+        
+        .connect-wallet-notice {
+            border: 2px solid var(--line-black);
+            padding: 14px 20px;
+            margin-bottom: 20px;
+            background: var(--bg-gray);
+            font-size: 0.9em;
+            color: var(--line-black);
+            display: none;
+        }
+        .connect-wallet-notice.show { display: block; }
+        
+        .step-indicator {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 24px;
+            flex-wrap: wrap;
+        }
+        .step-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 14px;
+            border: 2px solid rgba(0,0,0,0.2);
+            background: #fff;
+            font-size: 0.85em;
+            font-weight: 500;
+            color: var(--text-gray);
+            transition: all 0.3s;
+        }
+        .step-item.active {
+            border-color: var(--line-black);
+            color: var(--line-black);
+            background: var(--bg-gray);
+        }
+        .step-item.done {
+            border-color: var(--line-black);
+            color: var(--line-black);
+        }
+        .step-arrow { color: var(--text-gray); font-size: 0.9em; }
+        
+        .proposal-form-section {
+            border: 2px solid var(--line-black);
+            padding: 24px;
+            margin-bottom: 24px;
+            background: #fff;
+        }
+        .proposal-form-section h3 { font-size: 0.9em; margin-bottom: 16px; text-transform: uppercase; letter-spacing: 1px; color: var(--text-gray); }
+        .proposal-form-row { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 14px; align-items: flex-end; }
+        .form-group-token { display: flex; flex-direction: column; gap: 4px; }
+        .form-group-token label { font-size: 0.8em; color: var(--text-gray); }
+        .form-group-token input, .form-group-token select { padding: 10px 12px; border: 2px solid var(--line-black); font-family: inherit; font-size: 0.9em; }
+        .max-btn { padding: 10px 16px; border: 2px solid var(--line-black); background: transparent; font-family: inherit; font-size: 0.85em; font-weight: 500; cursor: pointer; transition: all 0.2s; }
+        .max-btn:hover { background: var(--line-black); color: #fff; }
+        .margin-hint { font-size: 0.8em; color: var(--text-gray); margin-top: 8px; }
+        .estimates-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 16px; padding-top: 16px; border-top: 1px solid rgba(0,0,0,0.1); }
+        .estimate-item { font-size: 0.85em; }
+        .estimate-item .label { color: var(--text-gray); }
+        .estimate-item .value { font-weight: 600; color: var(--line-black); }
+        .propose-action-btn { margin-top: 20px; padding: 12px 28px; border: 2px solid var(--line-black); background: var(--line-black); color: #fff; font-family: inherit; font-size: 1em; font-weight: 500; cursor: pointer; transition: all 0.2s; }
+        .propose-action-btn:hover { background: var(--line-black); color: #fff; opacity: 0.9; }
+        .propose-action-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        
+        .agent-confidence-box {
+            border: 2px solid var(--line-black);
+            padding: 16px 20px;
+            margin-bottom: 20px;
+            background: var(--bg-gray);
+            display: grid;
+            grid-template-columns: auto 1fr;
+            gap: 12px 24px;
+            align-items: start;
+        }
+        .agent-confidence-box .label { font-size: 0.85em; color: var(--text-gray); }
+        .agent-confidence-box .score { font-size: 1.25em; font-weight: 600; color: var(--line-black); }
+        .agent-mode-pills { display: flex; gap: 8px; flex-wrap: wrap; }
+        .agent-mode-pill { padding: 6px 12px; border: 2px solid rgba(0,0,0,0.2); background: #fff; font-size: 0.8em; font-weight: 500; color: var(--text-gray); }
+        .agent-mode-pill.active { border-color: var(--line-black); color: var(--line-black); background: var(--bg-gray); }
+        
+        .core-validation-box {
+            border: 2px solid var(--line-black);
+            padding: 20px 24px;
+            margin: 20px 0;
+            background: #fff;
+        }
+        .core-validation-box h3 { font-size: 0.9em; margin-bottom: 14px; text-transform: uppercase; letter-spacing: 1px; }
+        .core-checklist { list-style: none; }
+        .core-checklist li { padding: 6px 0; font-size: 0.9em; display: flex; align-items: center; gap: 8px; }
+        .core-checklist li::before { content: '✔'; color: #1a5c1a; font-weight: bold; }
+        .core-denied { margin-top: 14px; padding: 14px; border: 2px solid #8b2a2a; background: rgba(139,42,42,0.08); font-size: 0.9em; display: none; }
+        .core-denied.show { display: block; }
+        .core-denied .who { font-weight: 600; margin-bottom: 4px; }
+        
+        .reject-ux-box {
+            border: 2px solid #8b2a2a;
+            padding: 20px 24px;
+            margin: 20px 0;
+            background: rgba(139,42,42,0.06);
+            display: none;
+        }
+        .reject-ux-box.show { display: block; }
+        .reject-ux-box .title { font-size: 1.1em; font-weight: 600; margin-bottom: 12px; color: #8b2a2a; }
+        .reject-ux-box .who-row { display: flex; gap: 16px; margin-bottom: 8px; font-size: 0.9em; }
+        .reject-ux-box .why { margin-top: 12px; padding-top: 12px; border-top: 1px solid rgba(139,42,42,0.3); font-size: 0.9em; color: var(--text-gray); }
+        
+        .active-position-panel {
+            border: 2px solid var(--line-black);
+            padding: 24px;
+            margin-top: 24px;
+            background: #fff;
+            display: none;
+        }
+        .active-position-panel.show { display: block; }
+        .active-position-panel h3 { font-size: 0.95em; margin-bottom: 16px; text-transform: uppercase; letter-spacing: 1px; }
+        .position-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px 24px; }
+        .position-actions { display: flex; gap: 12px; margin-top: 20px; }
+        .position-actions button { padding: 10px 20px; border: 2px solid var(--line-black); font-family: inherit; font-size: 0.9em; font-weight: 500; cursor: pointer; transition: all 0.2s; }
+        .btn-close-pos { background: var(--line-black); color: #fff; }
+        .btn-reduce-pos { background: transparent; color: var(--line-black); }
+        .btn-close-pos:hover, .btn-reduce-pos:hover { background: var(--line-black); color: #fff; }
+        
+        .contract-actions {
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        
+        .ca-buttons {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+        
+        .copy-ca-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 6px 12px;
+            border: 2px solid var(--line-black);
+            background: #ffffff;
+            color: var(--line-black);
+            font-size: 0.85em;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .copy-ca-btn:hover {
+            background: var(--line-black);
+            color: #ffffff;
+        }
+        
+        .copy-ca-btn.copied {
+            background: #00aa00;
+            color: #ffffff;
+            border-color: #00aa00;
+        }
+        
+        .gmgn-link {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            text-decoration: none;
+            color: var(--line-black);
+            transition: opacity 0.2s;
+        }
+        
+        .gmgn-link:hover {
+            opacity: 0.7;
+        }
+        
+        .gmgn-logo {
+            width: 28px;
+            height: 28px;
+            display: block;
+            border: 2px solid var(--line-black);
+            padding: 4px;
+            background: #ffffff;
+            box-sizing: border-box;
+        }
+        
+        .decision-details {
+            margin-top: 20px;
+            font-size: 1em;
+            color: var(--text-gray);
+            line-height: 1.6;
+        }
+        
+        @keyframes drawPath {
+            0% {
+                stroke-dasharray: 1000;
+                stroke-dashoffset: 1000;
+                opacity: 0;
+            }
+            50% {
+                opacity: 1;
+            }
+            100% {
+                stroke-dashoffset: 0;
+                opacity: 1;
+            }
+        }
+        
+        @keyframes pulse {
+            0%, 100% {
+                transform: scale(1);
+                opacity: 1;
+            }
+            50% {
+                transform: scale(1.2);
+                opacity: 0.7;
+            }
+        }
+        
+        @keyframes drawBar {
+            from {
+                height: 0;
+            }
+            to {
+                height: attr(height);
+            }
+        }
+        
+        @keyframes drawArea {
+            from {
+                opacity: 0;
+            }
+            to {
+                opacity: 0.1;
+            }
+        }
+        
+        /* Ocean elements */
+        body {
+            position: relative;
+        }
+        
+        .ocean-element {
+            position: fixed;
+            z-index: 0;
+            pointer-events: none;
+            opacity: 0.3;
+        }
+        
+        .ocean-fish {
+            animation: swim 15s ease-in-out infinite;
+        }
+        
+        .ocean-shell {
+            animation: floatShell 8s ease-in-out infinite;
+        }
+        
+        .ocean-fish svg,
+        .ocean-shell svg {
+            width: 100%;
+            height: 100%;
+        }
+        
+        .fish-line {
+            stroke: var(--line-black);
+            stroke-width: 2;
+            fill: none;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+            animation: drawFish 2s ease-out;
+        }
+        
+        .fish-eye {
+            fill: var(--line-black);
+            animation: blink 3s ease-in-out infinite;
+        }
+        
+        .shell-line {
+            stroke: var(--line-black);
+            stroke-width: 2;
+            fill: none;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+            animation: drawShell 2s ease-out;
+        }
+        
+        @keyframes swim {
+            0% {
+                transform: translateX(-150px) translateY(0) scaleX(1);
+            }
+            25% {
+                transform: translateX(25vw) translateY(0) scaleX(1);
+            }
+            50% {
+                transform: translateX(50vw) translateY(0) scaleX(-1);
+            }
+            75% {
+                transform: translateX(75vw) translateY(0) scaleX(-1);
+            }
+            100% {
+                transform: translateX(calc(100vw + 150px)) translateY(0) scaleX(-1);
+            }
+        }
+        
+        @keyframes floatShell {
+            0%, 100% {
+                transform: translateY(0) rotate(0deg);
+            }
+            25% {
+                transform: translateY(-15px) rotate(-5deg);
+            }
+            50% {
+                transform: translateY(-25px) rotate(0deg);
+            }
+            75% {
+                transform: translateY(-15px) rotate(5deg);
+            }
+        }
+        
+        @keyframes drawFish {
+            from {
+                stroke-dasharray: 200;
+                stroke-dashoffset: 200;
+                opacity: 0;
+            }
+            to {
+                stroke-dashoffset: 0;
+                opacity: 1;
+            }
+        }
+        
+        @keyframes drawShell {
+            from {
+                stroke-dasharray: 150;
+                stroke-dashoffset: 150;
+                opacity: 0;
+            }
+            to {
+                stroke-dashoffset: 0;
+                opacity: 1;
+            }
+        }
+        
+        @keyframes blink {
+            0%, 90%, 100% {
+                opacity: 1;
+            }
+            95% {
+                opacity: 0.3;
+            }
+        }
+        
+        @keyframes swimTail {
+            0%, 100% {
+                transform: rotate(0deg);
+            }
+            50% {
+                transform: rotate(15deg);
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Ocean shell -->
+    <div class="ocean-element ocean-shell" style="bottom: 5%; right: 5%; width: 50px; height: 60px; animation-delay: 2s;">
+        <svg viewBox="0 0 50 60" xmlns="http://www.w3.org/2000/svg">
+            <path class="shell-line" d="M 25 0 Q 35 10 35 25 Q 35 40 25 50 Q 15 40 15 25 Q 15 10 25 0" stroke-width="2"/>
+            <path class="shell-line" d="M 25 0 Q 30 15 30 25 Q 30 35 25 50" stroke-width="1.5"/>
+            <path class="shell-line" d="M 25 0 Q 20 15 20 25 Q 20 35 25 50" stroke-width="1.5"/>
+        </svg>
+    </div>
+    
+    <div class="container">
+        <div class="header scroll-animate">
+            <div class="header-left">
+                <h1 id="tokenTitle">Token Detail</h1>
+                <a href="index.html" class="back-btn">← Back to Market</a>
+                <div class="wallet-widget" id="walletWidget">
+                    <div class="wallet-not-connected" id="walletNotConnected">
+                        <button class="connect-btn" type="button" onclick="connectWallet()">Connect Wallet (Phantom)</button>
+                    </div>
+                    <div class="wallet-connected" id="walletConnected" style="display:none;">
+                        <div class="wallet-connected-info">
+                            <span class="wallet-address" id="walletAddress">9S8e…pump</span><br>
+                            <span class="wallet-network">Solana</span>
+                        </div>
+                        <button class="disconnect-btn" type="button" onclick="disconnectWallet()">Disconnect</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="token-info scroll-animate">
+            <div class="info-card">
+                <h3>Market Data</h3>
+                <div class="info-item">
+                    <span class="info-label">Current Price</span>
+                    <span class="info-value" id="currentPrice">$0.01</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">24h Change</span>
+                    <span class="info-value" id="change24h">+12%</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">24h High</span>
+                    <span class="info-value" id="high24h">$0.012</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">24h Low</span>
+                    <span class="info-value" id="low24h">$0.008</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Volume (24h)</span>
+                    <span class="info-value" id="volume24h">$1.2M</span>
+                </div>
+            </div>
+            
+            <div class="info-card">
+                <h3>Exposure & Risk</h3>
+                <div class="info-item">
+                    <span class="info-label">Long Exposure</span>
+                    <span class="info-value" id="longExposure">63%</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Short Exposure</span>
+                    <span class="info-value" id="shortExposure">37%</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Agent Bias</span>
+                    <span class="info-value" id="agentBias">LONG</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Status</span>
+                    <span class="info-value" id="status">ACTIVE</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Max Leverage</span>
+                    <span class="info-value" id="maxLeverage">10x</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Contract Address</span>
+                    <div class="contract-actions">
+                        <span class="info-value" id="contractAddress" style="font-size: 0.75em; word-break: break-all;"></span>
+                        <span class="ca-buttons">
+                            <button class="copy-ca-btn" onclick="copyContractAddress()">Copy CA</button>
+                            <a href="#" target="_blank" class="gmgn-link" id="gmgnLink" title="View on GMGN">
+                                <img src="gmgn-logo.svg" alt="GMGN" class="gmgn-logo">
+                            </a>
+                        </span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="info-card wallet-card">
+                <h3>Wallet</h3>
+                <div class="info-item">
+                    <span class="info-label">SOL Balance</span>
+                    <span class="info-value" id="walletSolBalance">—</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Available Balance</span>
+                    <span class="info-value" id="walletAvailableBalance">—</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Locked Margin</span>
+                    <span class="info-value" id="walletLockedMargin">—</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Free Margin</span>
+                    <span class="info-value" id="walletFreeMargin">—</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="price-chart scroll-animate">
+            <div class="chart-container">
+                <svg class="chart-svg" id="tokenDetailChart" viewBox="0 0 1000 250" preserveAspectRatio="none">
+                    <g id="candlesDetailContainer"></g>
+                </svg>
+            </div>
+        </div>
+        
+        <div class="agent-section scroll-animate">
+            <h2>OpenClaw Agent — Decision Log</h2>
+            <p class="agent-copy-line">You are proposing a trade. The agent decides whether to take the other side.</p>
+            
+            <div class="step-indicator" id="stepIndicator">
+                <span class="step-item active" data-step="1">[1] Your Proposal</span>
+                <span class="step-arrow">→</span>
+                <span class="step-item" data-step="2">[2] Agent Analysis</span>
+                <span class="step-arrow">→</span>
+                <span class="step-item" data-step="3">[3] Core Validation</span>
+                <span class="step-arrow">→</span>
+                <span class="step-item" data-step="4">[4] Position State</span>
+            </div>
+            
+            <div class="connect-wallet-notice" id="connectWalletNotice">
+                Connect Phantom wallet to submit your proposal.
+            </div>
+            <div class="proposal-form-section" id="proposalFormSection">
+                <h3>Trading Proposal</h3>
+                <div class="proposal-form-row">
+                    <div class="form-group-token">
+                        <label>Action</label>
+                        <select id="formAction">
+                            <option value="long">LONG</option>
+                            <option value="short">SHORT</option>
+                        </select>
+                    </div>
+                    <div class="form-group-token">
+                        <label>Position Size</label>
+                        <div style="display:flex;gap:8px;align-items:center;">
+                            <input type="number" id="formSize" value="1000" min="1" style="width:120px;">
+                            <button type="button" class="max-btn" onclick="setMaxSize()">Max</button>
+                        </div>
+                    </div>
+                    <div class="form-group-token">
+                        <label>Leverage</label>
+                        <select id="formLeverage">
+                            <option value="3">3x</option>
+                            <option value="5" selected>5x</option>
+                            <option value="10">10x</option>
+                        </select>
+                    </div>
+                    <div class="form-group-token">
+                        <label>Risk Preference</label>
+                        <select id="formRisk">
+                            <option>Low</option>
+                            <option selected>Medium</option>
+                            <option>High</option>
+                        </select>
+                    </div>
+                </div>
+                <p class="margin-hint" id="marginHint">Using 0% of available margin</p>
+                <div class="estimates-row">
+                    <div class="estimate-item">
+                        <span class="label">Estimated Margin Used</span><br>
+                        <span class="value" id="estMarginUsed">$0</span>
+                    </div>
+                    <div class="estimate-item">
+                        <span class="label">Estimated Liquidation Price</span><br>
+                        <span class="value" id="estLiqPrice">$0.00</span>
+                    </div>
+                    <div class="estimate-item">
+                        <span class="label">Estimated Max Loss</span><br>
+                        <span class="value" id="estMaxLoss">$0</span>
+                    </div>
+                </div>
+                <button type="button" class="propose-action-btn" id="proposeActionBtn" onclick="runProposal()">Propose Action</button>
+            </div>
+            
+            <div class="proposal-info" id="proposalInfo" style="display:none;">
+                <h3>[1] Your Proposal</h3>
+                <div class="proposal-grid">
+                    <div class="info-item">
+                        <span class="info-label">Action</span>
+                        <span class="info-value" id="proposalAction">LONG</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Position Size</span>
+                        <span class="info-value" id="proposalSize">1000</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Leverage</span>
+                        <span class="info-value" id="proposalLeverage">5x</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Risk Preference</span>
+                        <span class="info-value" id="proposalRisk">Medium</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div id="agentAnalysisBlock" style="display:none;">
+                <div class="agent-confidence-box">
+                    <span class="label">🧠 Agent Confidence</span>
+                    <div>
+                        <span class="score" id="agentConfidenceScore">0.72</span><br>
+                        <span class="label" id="agentConfidenceReason">High volatility, positive momentum, exposure within limits</span>
+                    </div>
+                    <span class="label">🎚 Agent Mode</span>
+                    <div class="agent-mode-pills">
+                        <span class="agent-mode-pill" data-mode="conservative">Conservative</span>
+                        <span class="agent-mode-pill active" data-mode="balanced">Balanced</span>
+                        <span class="agent-mode-pill" data-mode="aggressive">Aggressive</span>
+                    </div>
+                </div>
+                <div class="agent-log" id="agentLog"></div>
+            </div>
+            
+            <div class="core-validation-box" id="coreValidationBox" style="display:none;">
+                <h3>🔒 Clawcolator Core Check</h3>
+                <ul class="core-checklist" id="coreChecklist">
+                    <li>Margin safety</li>
+                    <li>Max leverage</li>
+                    <li>Exposure limits</li>
+                    <li>System invariants</li>
+                </ul>
+                <div class="core-denied" id="coreDenied">
+                    <div class="who">❌ Denied by Core</div>
+                    <div class="why" id="coreDeniedReason">Leverage exceeds system limit</div>
+                </div>
+            </div>
+            
+            <div class="decision-result" id="decisionResult" style="display:none;">
+                <div class="decision-status" id="decisionStatus"></div>
+                <div class="decision-details" id="decisionDetails"></div>
+            </div>
+            
+            <div class="reject-ux-box" id="rejectUxBox">
+                <div class="title">❌ Action Rejected</div>
+                <div class="who-row">
+                    <span id="rejectWhoAgent">Agent ❌</span>
+                    <span id="rejectWhoCore">Core ❌</span>
+                </div>
+                <div class="why" id="rejectWhy">—</div>
+            </div>
+            
+            <div class="active-position-panel" id="activePositionPanel">
+                <h3>📈 Active Position</h3>
+                <div class="position-grid">
+                    <div class="info-item"><span class="info-label">Direction</span><span class="info-value" id="posDirection">LONG</span></div>
+                    <div class="info-item"><span class="info-label">Size</span><span class="info-value" id="posSize">1000</span></div>
+                    <div class="info-item"><span class="info-label">Leverage</span><span class="info-value" id="posLeverage">5x</span></div>
+                    <div class="info-item"><span class="info-label">Entry Price</span><span class="info-value" id="posEntryPrice">$0.01</span></div>
+                    <div class="info-item"><span class="info-label">Liquidation Price</span><span class="info-value" id="posLiqPrice">$0.008</span></div>
+                    <div class="info-item"><span class="info-label">Unrealized PnL</span><span class="info-value" id="posUnrealizedPnl">+$0</span></div>
+                </div>
+                <div class="position-actions">
+                    <button type="button" class="btn-close-pos" onclick="closePosition()">Close Position</button>
+                    <button type="button" class="btn-reduce-pos" onclick="reducePosition()">Reduce Position</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // Generate candlestick data for a token
+        function generateCandleData(token) {
+            const candles = [];
+            const basePrice = {
+                'GOYIM': 0.0004,
+                'OPENCLAW': 0.0008,
+                'BIGTROUT': 0.0012,
+                'BUTTCOIN': 0.0003,
+                'PSYOPANIME': 0.0007
+            }[token] || 0.001;
+            
+            const volatility = {
+                'GOYIM': 0.15,
+                'OPENCLAW': 0.12,
+                'BIGTROUT': 0.20,
+                'BUTTCOIN': 0.18,
+                'PSYOPANIME': 0.10
+            }[token] || 0.15;
+            
+            let currentPrice = basePrice;
+            const candleWidth = 18;
+            const spacing = 20;
+            const chartHeight = 250;
+            const padding = 20;
+            const priceRange = basePrice * volatility * 2;
+            const minPrice = basePrice - priceRange;
+            const maxPrice = basePrice + priceRange;
+            
+            for (let i = 0; i < 50; i++) {
+                const x = padding + i * spacing;
+                const change = (Math.random() - 0.5) * volatility * 2;
+                const open = currentPrice;
+                const close = Math.max(minPrice, Math.min(maxPrice, open * (1 + change)));
+                const high = Math.max(open, close) * (1 + Math.random() * 0.05);
+                const low = Math.min(open, close) * (1 - Math.random() * 0.05);
+                
+                const isUp = close >= open;
+                
+                // Convert prices to Y coordinates (inverted: lower price = higher Y)
+                const openY = chartHeight - padding - ((open - minPrice) / (maxPrice - minPrice)) * (chartHeight - padding * 2);
+                const closeY = chartHeight - padding - ((close - minPrice) / (maxPrice - minPrice)) * (chartHeight - padding * 2);
+                const highY = chartHeight - padding - ((high - minPrice) / (maxPrice - minPrice)) * (chartHeight - padding * 2);
+                const lowY = chartHeight - padding - ((low - minPrice) / (maxPrice - minPrice)) * (chartHeight - padding * 2);
+                
+                candles.push({
+                    x: x,
+                    open: openY,
+                    close: closeY,
+                    high: highY,
+                    low: lowY,
+                    isUp: isUp
+                });
+                
+                currentPrice = close;
+            }
+            
+            return candles;
+        }
+        
+        // Render candlesticks
+        function renderCandles(container, candles) {
+            container.innerHTML = '';
+            
+            candles.forEach(candle => {
+                const wick = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                wick.setAttribute('x1', candle.x);
+                wick.setAttribute('y1', candle.high);
+                wick.setAttribute('x2', candle.x);
+                wick.setAttribute('y2', candle.low);
+                wick.setAttribute('stroke', 'var(--line-black)');
+                wick.setAttribute('stroke-width', '1.5');
+                container.appendChild(wick);
+                
+                const body = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+                const bodyTop = Math.min(candle.open, candle.close);
+                const bodyBottom = Math.max(candle.open, candle.close);
+                const bodyHeight = Math.max(2, bodyBottom - bodyTop);
+                
+                body.setAttribute('x', candle.x - 6);
+                body.setAttribute('y', bodyTop);
+                body.setAttribute('width', '12');
+                body.setAttribute('height', bodyHeight);
+                body.setAttribute('fill', candle.isUp ? '#00aa00' : '#aa0000');
+                body.setAttribute('stroke', 'var(--line-black)');
+                body.setAttribute('stroke-width', '1.5');
+                container.appendChild(body);
+            });
+        }
+        
+        // Parse URL parameters
+        const urlParams = new URLSearchParams(window.location.search);
+        const token = urlParams.get('token') || 'GOYIM';
+        const action = urlParams.get('action') || 'long';
+        const size = urlParams.get('size') || '1000';
+        const leverage = urlParams.get('leverage') || '5';
+        const risk = urlParams.get('risk') || 'Medium';
+        
+        // Token display names
+        const tokenDisplayNames = {
+            'GOYIM': 'Goyim $GOYIM',
+            'OPENCLAW': 'OPENCLAW $OPENCLAW',
+            'BIGTROUT': '$BigTrout',
+            'BUTTCOIN': 'Buttcoin $BUTTCOIN',
+            'PSYOPANIME': 'PsyopAnime $PSYOPANIME'
+        };
+        
+        // Update page title
+        const displayName = tokenDisplayNames[token] || token;
+        document.getElementById('tokenTitle').textContent = displayName + ' / SOL — Agent Analysis';
+        
+        // Generate and render chart for this token
+        const chartContainer = document.getElementById('candlesDetailContainer');
+        if (chartContainer) {
+            const candles = generateCandleData(token);
+            renderCandles(chartContainer, candles);
+        }
+        
+        // Update proposal info
+        document.getElementById('proposalAction').textContent = action.toUpperCase();
+        document.getElementById('proposalSize').textContent = size;
+        document.getElementById('proposalLeverage').textContent = leverage + 'x';
+        document.getElementById('proposalRisk').textContent = risk;
+        
+        // Token data (mock)
+        const tokenData = {
+            'GOYIM': { price: '$0.0042', change: '+18%', high: '$0.0050', low: '$0.0035', volume: '$850K', long: '58%', short: '42%', bias: 'LONG', status: 'ACTIVE', address: '9S8edqWxoWz5LYLnxWUmWBJnePg35WfdYQp7HQkUpump' },
+            'OPENCLAW': { price: '$0.0085', change: '+24%', high: '$0.0105', low: '$0.0068', volume: '$1.8M', long: '72%', short: '28%', bias: 'LONG', status: 'ACTIVE', address: 'CxoaKHTGYAUkHwzK5dazVYuG3vvEXExrGznMwX1ipump' },
+            'BIGTROUT': { price: '$0.0012', change: '-8%', high: '$0.0015', low: '$0.0010', volume: '$420K', long: '35%', short: '65%', bias: 'SHORT', status: 'ACTIVE', address: 'EKwF2HD6X4rHHr4322EJeK9QBGkqhpHZQSanSUmWkecG' },
+            'BUTTCOIN': { price: '$0.0033', change: '+45%', high: '$0.0040', low: '$0.0022', volume: '$2.1M', long: '68%', short: '32%', bias: 'LONG', status: 'ACTIVE', address: 'Cm6fNnMk7NfzStP9CZpsQA2v3jjzbcYGAxdJySmHpump' },
+            'PSYOPANIME': { price: '$0.0067', change: '+31%', high: '$0.0082', low: '$0.0051', volume: '$1.5M', long: '55%', short: '45%', bias: 'LONG', status: 'ACTIVE', address: '2nP9yKQNSGQy851iyawDvBkzkK2R2aqKArQCKc2gpump' }
+        };
+        
+        const data = tokenData[token] || tokenData['GOYIM'];
+        
+        // Update market data
+        document.getElementById('currentPrice').textContent = data.price;
+        document.getElementById('change24h').textContent = data.change;
+        document.getElementById('high24h').textContent = data.high;
+        document.getElementById('low24h').textContent = data.low;
+        document.getElementById('volume24h').textContent = data.volume;
+        document.getElementById('longExposure').textContent = data.long;
+        document.getElementById('shortExposure').textContent = data.short;
+        document.getElementById('agentBias').textContent = data.bias;
+        document.getElementById('status').textContent = data.status;
+        
+        // Update contract address
+        const contractAddress = data.address;
+        const shortAddress = contractAddress.substring(0, 8) + '...' + contractAddress.substring(contractAddress.length - 8);
+        document.getElementById('contractAddress').textContent = shortAddress;
+        document.getElementById('gmgnLink').href = 'https://gmgn.ai/sol/token/' + contractAddress;
+        
+        // Copy contract address
+        function copyContractAddress() {
+            const address = tokenData[token].address;
+            navigator.clipboard.writeText(address).then(() => {
+                const button = document.querySelector('.copy-ca-btn');
+                const originalText = button.textContent;
+                button.textContent = 'Copied!';
+                button.classList.add('copied');
+                setTimeout(() => {
+                    button.textContent = originalText;
+                    button.classList.remove('copied');
+                }, 2000);
+            }).catch(err => {
+                console.error('Failed to copy:', err);
+            });
+        }
+        
+        // ——— Wallet (Phantom + Helius RPC) ———
+        const HELIUS_RPC = 'https://mainnet.helius-rpc.com/?api-key=c5040336-825d-42e6-a592-59ef6633316c';
+        const SOL_USD_FALLBACK = 200;
+        let walletConnected = false;
+        let connectedAddress = null;
+        let userFreeMarginUSD = 0;
+        
+        async function fetchSolBalance(pubkey) {
+            try {
+                const res = await fetch(HELIUS_RPC, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        jsonrpc: '2.0',
+                        id: 1,
+                        method: 'getBalance',
+                        params: [pubkey]
+                    })
+                });
+                const json = await res.json();
+                if (json.error) throw new Error(json.error.message || 'RPC error');
+                const lamports = json.result && json.result.value != null ? json.result.value : 0;
+                return lamports / 1e9;
+            } catch (e) {
+                console.error('getBalance failed:', e);
+                return null;
+            }
+        }
+        
+        function formatShortAddress(addr) {
+            if (!addr) return '';
+            return addr.substring(0, 6) + '…' + addr.substring(addr.length - 4);
+        }
+        
+        async function connectWallet() {
+            const provider = window.solana || window.phantom?.solana;
+            if (!provider || !provider.isPhantom) {
+                alert('Phantom wallet not found. Install the Phantom browser extension.');
+                return;
+            }
+            try {
+                const resp = await provider.connect();
+                const pubkey = (resp.publicKey || provider.publicKey)?.toBase58?.();
+                if (!pubkey) throw new Error('No public key');
+                connectedAddress = pubkey;
+                walletConnected = true;
+                document.getElementById('walletNotConnected').style.display = 'none';
+                document.getElementById('walletConnected').style.display = 'flex';
+                document.getElementById('walletAddress').textContent = formatShortAddress(pubkey);
+                document.getElementById('walletSolBalance').textContent = '…';
+                document.getElementById('walletAvailableBalance').textContent = '…';
+                document.getElementById('walletLockedMargin').textContent = '…';
+                document.getElementById('walletFreeMargin').textContent = '…';
+                const sol = await fetchSolBalance(pubkey);
+                if (sol != null) {
+                    document.getElementById('walletSolBalance').textContent = sol.toFixed(4) + ' SOL';
+                    const usd = sol * SOL_USD_FALLBACK;
+                    userFreeMarginUSD = Math.round(usd);
+                    document.getElementById('walletAvailableBalance').textContent = '$' + userFreeMarginUSD.toLocaleString();
+                    document.getElementById('walletLockedMargin').textContent = '$0';
+                    document.getElementById('walletFreeMargin').textContent = '$' + userFreeMarginUSD.toLocaleString();
+                    const notice = document.getElementById('connectWalletNotice');
+                    if (notice) notice.classList.remove('show');
+                } else {
+                    document.getElementById('walletSolBalance').textContent = '—';
+                    document.getElementById('walletAvailableBalance').textContent = '—';
+                    document.getElementById('walletLockedMargin').textContent = '—';
+                    document.getElementById('walletFreeMargin').textContent = '—';
+                }
+            } catch (e) {
+                console.error('Connect failed:', e);
+                if (e.code !== 4001) alert('Could not connect wallet: ' + (e.message || String(e)));
+            }
+        }
+        
+        function disconnectWallet() {
+            const provider = window.solana || window.phantom?.solana;
+            if (provider && provider.disconnect) provider.disconnect();
+            walletConnected = false;
+            connectedAddress = null;
+            document.getElementById('walletNotConnected').style.display = 'block';
+            document.getElementById('walletConnected').style.display = 'none';
+            document.getElementById('walletSolBalance').textContent = '—';
+            document.getElementById('walletAvailableBalance').textContent = '—';
+            document.getElementById('walletLockedMargin').textContent = '—';
+            document.getElementById('walletFreeMargin').textContent = '—';
+        }
+        
+        // ——— Proposal form: Max, estimates, margin hint ———
+        function getFormSize() { return parseInt(document.getElementById('formSize').value) || 0; }
+        function getFormLeverage() { return parseInt(document.getElementById('formLeverage').value) || 5; }
+        function setMaxSize() {
+            if (!walletConnected) { connectWallet(); return; }
+            const free = userFreeMarginUSD || 0;
+            const price = parseFloat((data.price || '$0.01').replace(/[$,]/g, '')) || 0.01;
+            const lev = getFormLeverage();
+            const maxSize = free && price ? Math.floor((free / (price * 0.1)) * 0.95) : 1000;
+            document.getElementById('formSize').value = Math.max(1, maxSize);
+            updateEstimates();
+        }
+        function updateEstimates() {
+            const size = getFormSize();
+            const lev = getFormLeverage();
+            const price = parseFloat((data.price || '$0.01').replace(/[$,]/g, '')) || 0.01;
+            const marginUsed = (size * price) / lev;
+            const pct = walletConnected && userFreeMarginUSD ? Math.round((marginUsed / userFreeMarginUSD) * 100) : 0;
+            document.getElementById('marginHint').textContent = 'Using ' + pct + '% of available margin';
+            document.getElementById('estMarginUsed').textContent = '$' + Math.round(marginUsed).toLocaleString();
+            const liqPct = 1 - (1 / lev);
+            const liqPrice = (price * (1 - liqPct * 0.9)).toFixed(4);
+            document.getElementById('estLiqPrice').textContent = '$' + liqPrice;
+            document.getElementById('estMaxLoss').textContent = '$' + Math.round(marginUsed).toLocaleString();
+        }
+        document.getElementById('formSize').addEventListener('input', updateEstimates);
+        document.getElementById('formLeverage').addEventListener('change', updateEstimates);
+        updateEstimates();
+        
+        // ——— Step indicator ———
+        function setStep(activeStep) {
+            document.querySelectorAll('.step-item').forEach((el, i) => {
+                const step = i + 1;
+                el.classList.remove('active', 'done');
+                if (step < activeStep) el.classList.add('done');
+                else if (step === activeStep) el.classList.add('active');
+            });
+        }
+        
+        // ——— Run proposal: animate steps, agent log, core, result ———
+        let proposalRunning = false;
+        function runProposal() {
+            if (proposalRunning) return;
+            proposalRunning = true;
+            const actionVal = document.getElementById('formAction').value;
+            const sizeVal = document.getElementById('formSize').value;
+            const leverageVal = document.getElementById('formLeverage').value;
+            const riskVal = document.getElementById('formRisk').value;
+            
+            document.getElementById('proposalFormSection').style.display = 'none';
+            document.getElementById('proposalInfo').style.display = 'block';
+            document.getElementById('proposalAction').textContent = actionVal.toUpperCase();
+            document.getElementById('proposalSize').textContent = sizeVal;
+            document.getElementById('proposalLeverage').textContent = leverageVal + 'x';
+            document.getElementById('proposalRisk').textContent = riskVal;
+            setStep(1);
+            
+            setStep(2);
+            document.getElementById('agentAnalysisBlock').style.display = 'block';
+            const log = document.getElementById('agentLog');
+            log.innerHTML = '';
+            const logEntries = [
+                '[Agent] Received ' + actionVal.toUpperCase() + ' proposal for ' + token,
+                '[Agent] Position size: ' + sizeVal,
+                '[Agent] Leverage: ' + leverageVal + 'x',
+                '[Agent] Risk preference: ' + riskVal.toUpperCase(),
+                '[Agent] Analyzing market volatility...',
+                '[Agent] Current volatility: HIGH',
+                '[Agent] Checking current exposure...',
+                '[Agent] Long exposure: ' + data.long + ', Short exposure: ' + data.short,
+                '[Agent] Exposure check passed',
+                '[Agent] Calculating risk-adjusted parameters...',
+                '[Agent] Risk-adjusted leverage calculated',
+                '[Agent] Evaluating market conditions...',
+                '[Agent] Oracle confidence: MEDIUM',
+                '[Agent] Liquidity check: PASSED',
+                '[Agent] Decision: Processing...'
+            ];
+            logEntries.forEach((entry, index) => {
+                setTimeout(() => {
+                    const logEntry = document.createElement('div');
+                    logEntry.className = 'log-entry';
+                    logEntry.innerHTML = '<span class="log-time">[' + new Date().toLocaleTimeString() + ']</span> ' + entry;
+                    log.appendChild(logEntry);
+                    log.scrollTop = log.scrollHeight;
+                }, index * 350);
+            });
+            
+            let coreDenied = false;
+            const logDuration = logEntries.length * 350 + 400;
+            setTimeout(() => {
+                setStep(3);
+                const coreBox = document.getElementById('coreValidationBox');
+                coreBox.style.display = 'block';
+                coreDenied = Math.random() < 0.25;
+                if (coreDenied) {
+                    document.getElementById('coreDenied').classList.add('show');
+                    document.getElementById('coreDeniedReason').textContent = 'Leverage exceeds system limit (max 10x at current exposure).';
+                }
+            }, logDuration);
+            
+            setTimeout(() => {
+                setStep(4);
+                const result = document.getElementById('decisionResult');
+                const statusEl = document.getElementById('decisionStatus');
+                const detailsEl = document.getElementById('decisionDetails');
+                const rejectBox = document.getElementById('rejectUxBox');
+                const positionPanel = document.getElementById('activePositionPanel');
+                document.getElementById('coreDenied').classList.remove('show');
+                
+                let decision = 'ACCEPTED';
+                if (coreDenied) decision = 'REJECTED';
+                else decision = ['ACCEPTED', 'REJECTED', 'MODIFIED'][Math.floor(Math.random() * 3)];
+                
+                result.style.display = 'block';
+                rejectBox.classList.remove('show');
+                positionPanel.classList.remove('show');
+                
+                if (decision === 'ACCEPTED') {
+                    statusEl.textContent = '✅ ACCEPTED';
+                    statusEl.className = 'decision-status decision-accepted';
+                    detailsEl.textContent = 'Your ' + actionVal.toUpperCase() + ' proposal has been accepted by the agent. Position will be opened with the requested parameters.';
+                    positionPanel.classList.add('show');
+                    document.getElementById('posDirection').textContent = actionVal.toUpperCase();
+                    document.getElementById('posSize').textContent = sizeVal;
+                    document.getElementById('posLeverage').textContent = leverageVal + 'x';
+                    document.getElementById('posEntryPrice').textContent = data.price;
+                    const priceNum = parseFloat((data.price || '0.01').replace(/[$,]/g, ''));
+                    const liqPct = 1 - (1 / parseInt(leverageVal));
+                    document.getElementById('posLiqPrice').textContent = '$' + (priceNum * (1 - liqPct * 0.9)).toFixed(4);
+                    document.getElementById('posUnrealizedPnl').textContent = '+$0';
+                } else if (decision === 'REJECTED') {
+                    statusEl.textContent = '❌ REJECTED';
+                    statusEl.className = 'decision-status decision-rejected';
+                    detailsEl.textContent = 'Your proposal was rejected. See details below.';
+                    const byAgent = Math.random() < 0.5;
+                    rejectBox.classList.add('show');
+                    document.getElementById('rejectWhoAgent').innerHTML = byAgent ? 'Agent ❌' : 'Agent ✓';
+                    document.getElementById('rejectWhoCore').innerHTML = !byAgent ? 'Core ❌' : 'Core ✓';
+                    document.getElementById('rejectWhy').textContent = byAgent
+                        ? 'Volatility exceeds agent tolerance for this size.'
+                        : 'Leverage exceeds system limit.';
+                } else {
+                    statusEl.textContent = '⚠️ MODIFIED';
+                    statusEl.className = 'decision-status decision-modified';
+                    const newLeverage = Math.max(1, parseInt(leverageVal) - 1);
+                    const newSize = Math.floor(parseInt(sizeVal) * 0.8);
+                    detailsEl.innerHTML = 'Leverage: ' + leverageVal + 'x → ' + newLeverage + 'x, Size: ' + sizeVal + ' → ' + newSize + '. Position opened with adjusted parameters.';
+                    positionPanel.classList.add('show');
+                    document.getElementById('posDirection').textContent = actionVal.toUpperCase();
+                    document.getElementById('posSize').textContent = newSize;
+                    document.getElementById('posLeverage').textContent = newLeverage + 'x';
+                    document.getElementById('posEntryPrice').textContent = data.price;
+                    const priceNum = parseFloat((data.price || '0.01').replace(/[$,]/g, ''));
+                    document.getElementById('posLiqPrice').textContent = '$' + (priceNum * (1 - (1 - 1/newLeverage) * 0.9)).toFixed(4);
+                    document.getElementById('posUnrealizedPnl').textContent = '+$0';
+                }
+                proposalRunning = false;
+            }, logDuration + 600);
+        }
+        
+        function closePosition() { alert('Close position (simulation)'); }
+        function reducePosition() { alert('Reduce position (simulation)'); }
+        
+        // Pre-fill form from URL
+        document.getElementById('formAction').value = action;
+        document.getElementById('formSize').value = size;
+        document.getElementById('formLeverage').value = leverage;
+        document.getElementById('formRisk').value = risk;
+        updateEstimates();
+        
+        // Show "Connect Phantom" notice when user came from modal (has proposal params)
+        if (urlParams.has('action') || urlParams.has('size') || urlParams.has('leverage')) {
+            document.getElementById('connectWalletNotice').classList.add('show');
+        }
+        
+        // Scroll animations - элементы появляются при прокрутке вниз и исчезают при прокрутке вверх
+        (function() {
+            const observerOptions = {
+                threshold: 0.15,
+                rootMargin: '0px 0px -80px 0px'
+            };
+            
+            let lastScrollY = window.scrollY;
+            let scrollDirection = 'down';
+            
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    const element = entry.target;
+                    const rect = entry.boundingClientRect;
+                    
+                    if (entry.isIntersecting) {
+                        // Элемент виден - показываем
+                        element.classList.add('visible');
+                        element.classList.remove('hidden');
+                    } else {
+                        // Элемент не виден - проверяем направление скролла
+                        if (scrollDirection === 'down' && rect.top < -100) {
+                            // Скроллим вниз, элемент ушёл вверх - скрываем
+                            element.classList.add('hidden');
+                            element.classList.remove('visible');
+                        } else if (scrollDirection === 'up' && rect.bottom > window.innerHeight + 100) {
+                            // Скроллим вверх, элемент ушёл вниз - скрываем
+                            element.classList.add('hidden');
+                            element.classList.remove('visible');
+                        }
+                    }
+                });
+            }, observerOptions);
+            
+            // Отслеживаем направление скролла
+            window.addEventListener('scroll', () => {
+                const currentScrollY = window.scrollY;
+                scrollDirection = currentScrollY > lastScrollY ? 'down' : 'up';
+                lastScrollY = currentScrollY;
+            }, { passive: true });
+            
+            // Находим все элементы с классом scroll-animate после загрузки
+            function initScrollAnimations() {
+                const elements = document.querySelectorAll('.scroll-animate');
+                elements.forEach(el => {
+                    observer.observe(el);
+                });
+            }
+            
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', initScrollAnimations);
+            } else {
+                initScrollAnimations();
+            }
+        })();
+    </script>
+</body>
+</html>
