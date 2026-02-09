@@ -46,5 +46,5 @@ We keep the same security claim: **no user can withdraw more value than exists o
 
 ## Links
 
-- **Site**: [Clawcolator](https://clawcolator.github.io) (or your deployment)
+- **Site**: [clawcolator1.vercel.app](https://clawcolator1.vercel.app)
 - **Upstream**: [Percolator](https://github.com/aeyakovenko/percolator)
